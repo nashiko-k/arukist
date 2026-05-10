@@ -1,30 +1,59 @@
 {
   "expo": {
-    "name": "arukist",
+    "name": "アルキスト",
     "slug": "arukist",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#FAF6EE"
     },
     "ios": {
-      "supportsTablet": true
+      "bundleIdentifier": "com.nashiko.arukist",
+      "supportsTablet": false,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#FAF6EE"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "react-native-health",
+        {
+          "healthSharePermission": "散歩の歩数や活動量を取得するために使用します",
+          "healthUpdatePermission": "散歩中の活動を健康データに記録するために使用します"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "newArchEnabled": false
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "e728eb85-158e-4f0c-8af4-60e7c9dcc80c"
+      }
     }
   }
 }
