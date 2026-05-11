@@ -3,9 +3,22 @@ import type { WalkSession } from '../types/walk';
 
 const SESSIONS_KEY = 'walk_sessions';
 
+function migrateSession(raw: any): WalkSession {
+  return {
+    id: raw.id,
+    startTime: raw.startTime,
+    endTime: raw.endTime,
+    startSteps: raw.startSteps,
+    endSteps: raw.endSteps,
+    memo: raw.memo ?? '',
+    placeLabel: raw.placeLabel ?? null,
+  };
+}
+
 export async function getAllSessions(): Promise<WalkSession[]> {
-  const sessions = await getItem<WalkSession[]>(SESSIONS_KEY);
-  return sessions ?? [];
+  const raw = await getItem<any[]>(SESSIONS_KEY);
+  if (!raw) return [];
+  return raw.map(migrateSession);
 }
 
 export async function saveSession(session: WalkSession): Promise<void> {

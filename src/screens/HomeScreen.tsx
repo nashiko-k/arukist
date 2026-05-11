@@ -3,8 +3,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -12,6 +14,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useHealth } from '../hooks/useHealth';
 import { saveSession } from '../storage/sessions';
 import { colors } from '../theme/colors';
+import {
+  PLACE_LABEL_ORDER,
+  PLACE_LABEL_TEXT,
+  type PlaceLabel,
+} from '../types/place';
 import type { WalkSession } from '../types/walk';
 
 type Phase = 'idle' | 'walking' | 'finished';
@@ -51,6 +58,10 @@ export default function HomeScreen() {
   const [startSteps, setStartSteps] = useState(0);
   const [currentSteps, setCurrentSteps] = useState(0);
   const [endSteps, setEndSteps] = useState(0);
+
+  // 散歩後の入力
+  const [memo, setMemo] = useState('');
+  const [placeLabel, setPlaceLabel] = useState<PlaceLabel | null>(null);
 
   // 経過時間の表示更新用
   const [now, setNow] = useState(Date.now());
@@ -146,6 +157,11 @@ export default function HomeScreen() {
     setPhase('finished');
   }, [currentSteps, getTodaySteps]);
 
+  const resetSessionInputs = useCallback(() => {
+    setMemo('');
+    setPlaceLabel(null);
+  }, []);
+
   const handleSave = useCallback(async () => {
     const session: WalkSession = {
       id: makeSessionId(startTime),
@@ -153,6 +169,8 @@ export default function HomeScreen() {
       endTime,
       startSteps,
       endSteps,
+      memo,
+      placeLabel,
     };
     try {
       await saveSession(session);
@@ -160,8 +178,9 @@ export default function HomeScreen() {
       Alert.alert('保存に失敗しました', e instanceof Error ? e.message : '');
       return;
     }
+    resetSessionInputs();
     setPhase('idle');
-  }, [startTime, endTime, startSteps, endSteps]);
+  }, [startTime, endTime, startSteps, endSteps, memo, placeLabel, resetSessionInputs]);
 
   const handleDiscard = useCallback(() => {
     Alert.alert('今回の散歩を破棄しますか？', 'この操作は元に戻せません', [
@@ -169,10 +188,13 @@ export default function HomeScreen() {
       {
         text: '破棄する',
         style: 'destructive',
-        onPress: () => setPhase('idle'),
+        onPress: () => {
+          resetSessionInputs();
+          setPhase('idle');
+        },
       },
     ]);
-  }, []);
+  }, [resetSessionInputs]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -196,6 +218,10 @@ export default function HomeScreen() {
         <PostWalkView
           durationMs={endTime - startTime}
           sessionSteps={Math.max(0, endSteps - startSteps)}
+          memo={memo}
+          placeLabel={placeLabel}
+          onChangeMemo={setMemo}
+          onChangePlaceLabel={setPlaceLabel}
           onSave={handleSave}
           onDiscard={handleDiscard}
         />
@@ -333,15 +359,36 @@ function DuringWalkView({ elapsedMs, sessionSteps, onEnd }: DuringWalkProps) {
 type PostWalkProps = {
   durationMs: number;
   sessionSteps: number;
+  memo: string;
+  placeLabel: PlaceLabel | null;
+  onChangeMemo: (v: string) => void;
+  onChangePlaceLabel: (v: PlaceLabel | null) => void;
   onSave: () => void;
   onDiscard: () => void;
 };
 
-function PostWalkView({ durationMs, sessionSteps, onSave, onDiscard }: PostWalkProps) {
+function PostWalkView({
+  durationMs,
+  sessionSteps,
+  memo,
+  placeLabel,
+  onChangeMemo,
+  onChangePlaceLabel,
+  onSave,
+  onDiscard,
+}: PostWalkProps) {
   const calories = sessionSteps * 0.04;
 
+  const togglePlace = (label: PlaceLabel) => {
+    onChangePlaceLabel(placeLabel === label ? null : label);
+  };
+
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.postScroll}
+      contentContainerStyle={styles.postContent}
+      keyboardShouldPersistTaps="handled"
+    >
       <View style={styles.celebrationBlock}>
         <Ionicons name="sparkles" size={28} color={colors.primaryDark} />
         <Text style={styles.celebrationTitle}>散歩おつかれさまでした</Text>
@@ -356,6 +403,42 @@ function PostWalkView({ durationMs, sessionSteps, onSave, onDiscard }: PostWalkP
         <SummaryRow label="消費カロリー（概算）" value={`${calories.toFixed(1)} kcal`} />
       </View>
 
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>どんな場所を歩いた？</Text>
+        <View style={styles.chipWrap}>
+          {PLACE_LABEL_ORDER.map((label) => {
+            const selected = placeLabel === label;
+            return (
+              <TouchableOpacity
+                key={label}
+                onPress={() => togglePlace(label)}
+                activeOpacity={0.7}
+                style={[styles.chip, selected && styles.chipSelected]}
+              >
+                <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
+                  {PLACE_LABEL_TEXT[label]}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>メモ</Text>
+        <TextInput
+          style={styles.memoInput}
+          value={memo}
+          onChangeText={onChangeMemo}
+          placeholder="今日の散歩、どうでしたか？"
+          placeholderTextColor={colors.textLight}
+          multiline
+          numberOfLines={3}
+          maxLength={500}
+          textAlignVertical="top"
+        />
+      </View>
+
       <TouchableOpacity style={styles.saveButton} onPress={onSave} activeOpacity={0.85}>
         <Ionicons
           name="checkmark-circle"
@@ -366,10 +449,10 @@ function PostWalkView({ durationMs, sessionSteps, onSave, onDiscard }: PostWalkP
         <Text style={styles.saveButtonText}>記録する</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={onDiscard} activeOpacity={0.6}>
+      <TouchableOpacity onPress={onDiscard} activeOpacity={0.6} style={styles.discardWrap}>
         <Text style={styles.discardText}>破棄する</Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -539,6 +622,15 @@ const styles = StyleSheet.create({
   },
 
   // PostWalk
+  postScroll: {
+    flex: 1,
+  },
+  postContent: {
+    paddingHorizontal: 24,
+    paddingTop: 32,
+    paddingBottom: 48,
+    alignItems: 'center',
+  },
   celebrationBlock: {
     alignItems: 'center',
     marginBottom: 32,
@@ -607,9 +699,62 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 1,
   },
+  discardWrap: {
+    paddingVertical: 8,
+  },
   discardText: {
     fontSize: 13,
     color: colors.textLight,
     textDecorationLine: 'underline',
+  },
+
+  // PostWalk - sections
+  section: {
+    width: '100%',
+    marginBottom: 28,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 12,
+    letterSpacing: 1,
+  },
+  chipWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chip: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  chipSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  chipText: {
+    fontSize: 13,
+    color: colors.text,
+  },
+  chipTextSelected: {
+    color: colors.surface,
+    fontWeight: '600',
+  },
+  memoInput: {
+    minHeight: 88,
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: colors.text,
+    lineHeight: 22,
   },
 });
