@@ -6,8 +6,10 @@ export type WalkSession = {
   endTime: number;
   startSteps: number;
   endSteps: number;
+  sessionSteps?: number;
   memo: string;
   placeLabel: PlaceLabel | null;
+  photoIds: string[];
 };
 
 export type WalkSummary = {

@@ -1,8 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Pedometer } from 'expo-sensors';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ActionSheetIOS,
   ActivityIndicator,
   Alert,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,6 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useHealth } from '../hooks/useHealth';
+import { deletePhoto } from '../storage/photos';
 import { saveSession } from '../storage/sessions';
 import { colors } from '../theme/colors';
 import {
@@ -19,11 +23,12 @@ import {
   PLACE_LABEL_TEXT,
   type PlaceLabel,
 } from '../types/place';
+import type { WalkPhoto } from '../types/photo';
 import type { WalkSession } from '../types/walk';
+import { captureFromCamera, captureFromLibrary } from '../utils/photoCapture';
 
 type Phase = 'idle' | 'walking' | 'finished';
 
-const STEP_POLL_MS = 5000;
 const HOLD_DURATION_MS = 1000;
 
 function formatDuration(ms: number): string {
@@ -56,12 +61,17 @@ export default function HomeScreen() {
   const [startTime, setStartTime] = useState(0);
   const [endTime, setEndTime] = useState(0);
   const [startSteps, setStartSteps] = useState(0);
-  const [currentSteps, setCurrentSteps] = useState(0);
   const [endSteps, setEndSteps] = useState(0);
+
+  // Pedometer
+  const [pedometerSteps, setPedometerSteps] = useState(0);
+  const [pedometerAvailable, setPedometerAvailable] = useState(true);
+  const pedometerSubRef = useRef<{ remove: () => void } | null>(null);
 
   // 散歩後の入力
   const [memo, setMemo] = useState('');
   const [placeLabel, setPlaceLabel] = useState<PlaceLabel | null>(null);
+  const [photos, setPhotos] = useState<WalkPhoto[]>([]);
 
   // 経過時間の表示更新用
   const [now, setNow] = useState(Date.now());
@@ -82,6 +92,14 @@ export default function HomeScreen() {
       cancelled = true;
     };
   }, [requestPermissions]);
+
+  useEffect(() => {
+    let cancelled = false;
+    Pedometer.isAvailableAsync().then((available) => {
+      if (!cancelled) setPedometerAvailable(available);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   // 'idle' に入る・戻るたびに今日の歩数を取得
   const refreshTodaySteps = useCallback(async () => {
@@ -111,56 +129,64 @@ export default function HomeScreen() {
     return () => clearInterval(id);
   }, [phase]);
 
-  // 'walking' の間、5秒ごとに歩数をポーリング
-  useEffect(() => {
-    if (phase !== 'walking') return;
-    let cancelled = false;
-    const poll = async () => {
-      try {
-        const v = await getTodaySteps();
-        if (!cancelled) setCurrentSteps(v);
-      } catch {
-        // 取得失敗時はそのまま据え置く
-      }
-    };
-    poll();
-    const id = setInterval(poll, STEP_POLL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, [phase, getTodaySteps]);
-
   const handleStart = useCallback(async () => {
     try {
       const s = await getTodaySteps();
       setStartSteps(s);
-      setCurrentSteps(s);
+      setPedometerSteps(0);
       const t = Date.now();
       setStartTime(t);
       setNow(t);
+
+      if (pedometerAvailable) {
+        const sub = Pedometer.watchStepCount((result) => {
+          setPedometerSteps(result.steps);
+        });
+        pedometerSubRef.current = sub;
+      }
+
       setPhase('walking');
     } catch (e) {
       Alert.alert('歩数の取得に失敗しました', e instanceof Error ? e.message : '');
     }
-  }, [getTodaySteps]);
+  }, [getTodaySteps, pedometerAvailable]);
 
   const handleEnd = useCallback(async () => {
-    let finalSteps = currentSteps;
+    if (pedometerSubRef.current) {
+      pedometerSubRef.current.remove();
+      pedometerSubRef.current = null;
+    }
+
+    let finalSteps = startSteps;
     try {
       finalSteps = await getTodaySteps();
     } catch {
-      // 失敗時はポーリング済みの最終値を使う
+      // HealthKit 取得失敗時は startSteps のまま
     }
     setEndSteps(finalSteps);
     setEndTime(Date.now());
     setPhase('finished');
-  }, [currentSteps, getTodaySteps]);
+  }, [startSteps, getTodaySteps]);
+
+  const handleCapture = useCallback(async () => {
+    try {
+      const photo = await captureFromCamera();
+      if (photo) setPhotos((prev) => [...prev, photo]);
+    } catch {
+      // silently ignore
+    }
+  }, []);
 
   const resetSessionInputs = useCallback(() => {
     setMemo('');
     setPlaceLabel(null);
+    setPhotos([]);
+    setPedometerSteps(0);
   }, []);
+
+  const displaySteps = pedometerAvailable
+    ? pedometerSteps
+    : Math.max(0, endSteps - startSteps);
 
   const handleSave = useCallback(async () => {
     const session: WalkSession = {
@@ -169,8 +195,10 @@ export default function HomeScreen() {
       endTime,
       startSteps,
       endSteps,
+      sessionSteps: pedometerAvailable ? pedometerSteps : undefined,
       memo,
       placeLabel,
+      photoIds: photos.map((p) => p.id),
     };
     try {
       await saveSession(session);
@@ -180,7 +208,7 @@ export default function HomeScreen() {
     }
     resetSessionInputs();
     setPhase('idle');
-  }, [startTime, endTime, startSteps, endSteps, memo, placeLabel, resetSessionInputs]);
+  }, [startTime, endTime, startSteps, endSteps, pedometerSteps, pedometerAvailable, memo, placeLabel, photos, resetSessionInputs]);
 
   const handleDiscard = useCallback(() => {
     Alert.alert('今回の散歩を破棄しますか？', 'この操作は元に戻せません', [
@@ -196,6 +224,39 @@ export default function HomeScreen() {
     ]);
   }, [resetSessionInputs]);
 
+  const handleAddPhoto = useCallback(() => {
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        options: ['カメラで撮影', 'カメラロールから選ぶ', 'キャンセル'],
+        cancelButtonIndex: 2,
+      },
+      async (index) => {
+        let photo: WalkPhoto | null = null;
+        try {
+          if (index === 0) photo = await captureFromCamera();
+          else if (index === 1) photo = await captureFromLibrary();
+        } catch {
+          // silently ignore
+        }
+        if (photo) setPhotos((prev) => [...prev, photo]);
+      },
+    );
+  }, []);
+
+  const handleDeletePhoto = useCallback((photoId: string) => {
+    Alert.alert('この写真を削除しますか？', '', [
+      { text: 'キャンセル', style: 'cancel' },
+      {
+        text: '削除',
+        style: 'destructive',
+        onPress: async () => {
+          await deletePhoto(photoId);
+          setPhotos((prev) => prev.filter((p) => p.id !== photoId));
+        },
+      },
+    ]);
+  }, []);
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       {phase === 'idle' && (
@@ -210,18 +271,23 @@ export default function HomeScreen() {
       {phase === 'walking' && (
         <DuringWalkView
           elapsedMs={now - startTime}
-          sessionSteps={Math.max(0, currentSteps - startSteps)}
+          sessionSteps={pedometerSteps}
+          photoCount={photos.length}
+          onCapture={handleCapture}
           onEnd={handleEnd}
         />
       )}
       {phase === 'finished' && (
         <PostWalkView
           durationMs={endTime - startTime}
-          sessionSteps={Math.max(0, endSteps - startSteps)}
+          sessionSteps={displaySteps}
           memo={memo}
           placeLabel={placeLabel}
+          photos={photos}
           onChangeMemo={setMemo}
           onChangePlaceLabel={setPlaceLabel}
+          onAddPhoto={handleAddPhoto}
+          onDeletePhoto={handleDeletePhoto}
           onSave={handleSave}
           onDiscard={handleDiscard}
         />
@@ -278,10 +344,12 @@ function PreWalkView({ todaySteps, loading, error, permissionReady, onStart }: P
 type DuringWalkProps = {
   elapsedMs: number;
   sessionSteps: number;
+  photoCount: number;
+  onCapture: () => void;
   onEnd: () => void;
 };
 
-function DuringWalkView({ elapsedMs, sessionSteps, onEnd }: DuringWalkProps) {
+function DuringWalkView({ elapsedMs, sessionSteps, photoCount, onCapture, onEnd }: DuringWalkProps) {
   const [holdProgress, setHoldProgress] = useState(0);
   const holdStartRef = useRef<number | null>(null);
   const holdIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -333,6 +401,17 @@ function DuringWalkView({ elapsedMs, sessionSteps, onEnd }: DuringWalkProps) {
         </View>
       </View>
 
+      <TouchableOpacity
+        style={styles.cameraButton}
+        onPress={onCapture}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="camera-outline" size={20} color={colors.text} />
+        <Text style={styles.cameraButtonText}>
+          写真を撮る{photoCount > 0 ? `（${photoCount}枚撮影済）` : ''}
+        </Text>
+      </TouchableOpacity>
+
       <View style={styles.endButtonWrapper}>
         <TouchableOpacity
           activeOpacity={1}
@@ -361,8 +440,11 @@ type PostWalkProps = {
   sessionSteps: number;
   memo: string;
   placeLabel: PlaceLabel | null;
+  photos: WalkPhoto[];
   onChangeMemo: (v: string) => void;
   onChangePlaceLabel: (v: PlaceLabel | null) => void;
+  onAddPhoto: () => void;
+  onDeletePhoto: (id: string) => void;
   onSave: () => void;
   onDiscard: () => void;
 };
@@ -372,8 +454,11 @@ function PostWalkView({
   sessionSteps,
   memo,
   placeLabel,
+  photos,
   onChangeMemo,
   onChangePlaceLabel,
+  onAddPhoto,
+  onDeletePhoto,
   onSave,
   onDiscard,
 }: PostWalkProps) {
@@ -401,6 +486,32 @@ function PostWalkView({
         <SummaryRow label="歩数" value={`${sessionSteps.toLocaleString()} 歩`} />
         <View style={styles.summaryDivider} />
         <SummaryRow label="消費カロリー（概算）" value={`${calories.toFixed(1)} kcal`} />
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>写真</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.photoRow}
+        >
+          {photos.map((p) => (
+            <TouchableOpacity
+              key={p.id}
+              onLongPress={() => onDeletePhoto(p.id)}
+              activeOpacity={0.8}
+            >
+              <Image source={{ uri: p.uri }} style={styles.photoThumb} />
+            </TouchableOpacity>
+          ))}
+          <TouchableOpacity
+            style={styles.photoAddButton}
+            onPress={onAddPhoto}
+            activeOpacity={0.6}
+          >
+            <Ionicons name="add" size={28} color={colors.textLight} />
+          </TouchableOpacity>
+        </ScrollView>
       </View>
 
       <View style={styles.section}>
@@ -561,7 +672,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     width: '100%',
-    marginBottom: 48,
+    marginBottom: 24,
   },
   statCard: {
     flex: 1,
@@ -584,6 +695,25 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
     fontVariant: ['tabular-nums'],
+  },
+
+  // Camera button (during walk)
+  cameraButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 24,
+  },
+  cameraButtonText: {
+    fontSize: 14,
+    color: colors.text,
+    marginLeft: 8,
   },
 
   endButtonWrapper: {
@@ -756,5 +886,28 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.text,
     lineHeight: 22,
+  },
+
+  // Photos
+  photoRow: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingVertical: 2,
+  },
+  photoThumb: {
+    width: 80,
+    height: 80,
+    borderRadius: 12,
+    backgroundColor: colors.borderSoft,
+  },
+  photoAddButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: colors.textLight,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

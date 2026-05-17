@@ -1,9 +1,10 @@
 import type { WalkSession } from '../types/walk';
-import { isSameDay, toDateKey } from './dates';
+import { toDateKey } from './dates';
+import { getSessionStepCount } from './walkDisplay';
 
 export type MonthSummary = {
   walkDays: number;
-  totalSteps: number;
+  sessionSteps: number;
   currentStreak: number;
 };
 
@@ -32,15 +33,15 @@ export function computeMonthSummary(
   const inMonth = sessions.filter((s) => s.startTime >= monthStart && s.startTime < monthEnd);
 
   const daySet = new Set<string>();
-  let totalSteps = 0;
+  let sessionSteps = 0;
   for (const s of inMonth) {
     daySet.add(toDateKey(new Date(s.startTime)));
-    totalSteps += Math.max(0, s.endSteps - s.startSteps);
+    sessionSteps += getSessionStepCount(s);
   }
 
   const currentStreak = computeStreak(sessions);
 
-  return { walkDays: daySet.size, totalSteps, currentStreak };
+  return { walkDays: daySet.size, sessionSteps, currentStreak };
 }
 
 function computeStreak(sessions: WalkSession[]): number {

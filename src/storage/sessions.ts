@@ -12,6 +12,7 @@ function migrateSession(raw: any): WalkSession {
     endSteps: raw.endSteps,
     memo: raw.memo ?? '',
     placeLabel: raw.placeLabel ?? null,
+    photoIds: raw.photoIds ?? [],
   };
 }
 

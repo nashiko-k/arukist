@@ -1,5 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useState } from 'react';
 import {
+  Image,
   Modal,
   ScrollView,
   StyleSheet,
@@ -7,10 +9,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { getPhotosByIds } from '../storage/photos';
 import { colors } from '../theme/colors';
+import type { WalkPhoto } from '../types/photo';
 import { PLACE_LABEL_TEXT } from '../types/place';
 import type { WalkSession } from '../types/walk';
 import { formatDate } from '../utils/dates';
+import { getSessionStepCount } from '../utils/walkDisplay';
 
 type Props = {
   visible: boolean;
@@ -35,6 +40,26 @@ function formatDuration(ms: number): string {
 }
 
 export default function SessionDetailModal({ visible, date, sessions, onClose }: Props) {
+  const [photoMap, setPhotoMap] = useState<Record<string, WalkPhoto[]>>({});
+
+  useEffect(() => {
+    if (!visible || sessions.length === 0) {
+      setPhotoMap({});
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const map: Record<string, WalkPhoto[]> = {};
+      for (const s of sessions) {
+        if (s.photoIds.length > 0) {
+          map[s.id] = await getPhotosByIds(s.photoIds);
+        }
+      }
+      if (!cancelled) setPhotoMap(map);
+    })();
+    return () => { cancelled = true; };
+  }, [visible, sessions]);
+
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.overlay}>
@@ -48,8 +73,9 @@ export default function SessionDetailModal({ visible, date, sessions, onClose }:
 
           <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
             {sessions.map((s, i) => {
-              const steps = Math.max(0, s.endSteps - s.startSteps);
+              const steps = getSessionStepCount(s);
               const calories = steps * 0.04;
+              const sessionPhotos = photoMap[s.id] ?? [];
               return (
                 <View key={s.id} style={styles.sessionCard}>
                   {sessions.length > 1 && (
@@ -62,6 +88,18 @@ export default function SessionDetailModal({ visible, date, sessions, onClose }:
                   <DetailRow label="経過" value={formatDuration(s.endTime - s.startTime)} />
                   <DetailRow label="歩数" value={`${steps.toLocaleString()} 歩`} />
                   <DetailRow label="カロリー" value={`${calories.toFixed(1)} kcal`} />
+                  {sessionPhotos.length > 0 && (
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      style={styles.photoScroll}
+                      contentContainerStyle={styles.photoRow}
+                    >
+                      {sessionPhotos.map((p) => (
+                        <Image key={p.id} source={{ uri: p.uri }} style={styles.photoThumb} />
+                      ))}
+                    </ScrollView>
+                  )}
                   {s.placeLabel && (
                     <View style={styles.placeRow}>
                       <View style={styles.placeChip}>
@@ -181,5 +219,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
     borderRadius: 10,
     padding: 12,
+  },
+  photoScroll: {
+    marginTop: 12,
+  },
+  photoRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  photoThumb: {
+    width: 80,
+    height: 80,
+    borderRadius: 10,
+    backgroundColor: colors.borderSoft,
   },
 });

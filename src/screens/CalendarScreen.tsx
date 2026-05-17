@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Dimensions,
   StyleSheet,
   Text,
@@ -10,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import SessionDetailModal from '../components/SessionDetailModal';
+import { useHealth } from '../hooks/useHealth';
 import { getAllSessions } from '../storage/sessions';
 import { colors } from '../theme/colors';
 import type { WalkSession } from '../types/walk';
@@ -22,7 +24,6 @@ import {
 import {
   computeMonthSummary,
   getSessionsByDay,
-  type MonthSummary,
 } from '../utils/summary';
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'] as const;
@@ -31,11 +32,14 @@ const CELL_SIZE = Math.floor((SCREEN_WIDTH - 48) / 7);
 
 export default function CalendarScreen() {
   const navigation = useNavigation();
+  const { getStepsForRange } = useHealth();
 
   const [sessions, setSessions] = useState<WalkSession[]>([]);
   const [year, setYear] = useState(() => new Date().getFullYear());
   const [month, setMonth] = useState(() => new Date().getMonth());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [monthTotalSteps, setMonthTotalSteps] = useState<number | null>(null);
+  const [monthStepsLoading, setMonthStepsLoading] = useState(false);
 
   const loadSessions = useCallback(async () => {
     const all = await getAllSessions();
@@ -52,6 +56,28 @@ export default function CalendarScreen() {
     });
     return unsub;
   }, [navigation, loadSessions]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setMonthStepsLoading(true);
+    setMonthTotalSteps(null);
+    const start = new Date(year, month, 1);
+    const end = new Date(year, month + 1, 0, 23, 59, 59);
+    (async () => {
+      try {
+        const daily = await getStepsForRange(start, end);
+        if (!cancelled) {
+          const total = daily.reduce((sum, d) => sum + d.value, 0);
+          setMonthTotalSteps(total);
+        }
+      } catch {
+        if (!cancelled) setMonthTotalSteps(null);
+      } finally {
+        if (!cancelled) setMonthStepsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [year, month, getStepsForRange]);
 
   const sessionsByDay = getSessionsByDay(sessions);
   const grid = getMonthGrid(year, month);
@@ -125,6 +151,7 @@ export default function CalendarScreen() {
             const hasSessions = sessionsByDay.has(key);
             const isToday = isSameDay(cell.date, today);
             const dayOfWeek = cell.date.getDay();
+            const showWalkStyle = hasSessions && cell.isCurrentMonth;
 
             return (
               <TouchableOpacity
@@ -134,34 +161,51 @@ export default function CalendarScreen() {
                 activeOpacity={hasSessions ? 0.6 : 1}
                 disabled={!cell.isCurrentMonth}
               >
-                <View style={[styles.dayCircle, isToday && styles.todayCircle]}>
+                <View
+                  style={[
+                    styles.dayCircle,
+                    showWalkStyle && styles.walkDayCircle,
+                    isToday && styles.todayCircle,
+                  ]}
+                >
                   <Text
                     style={[
                       styles.dayText,
                       !cell.isCurrentMonth && styles.dayTextOther,
+                      showWalkStyle && styles.dayTextWalk,
                       isToday && styles.dayTextToday,
-                      cell.isCurrentMonth && dayOfWeek === 0 && styles.daySunday,
-                      cell.isCurrentMonth && dayOfWeek === 6 && styles.daySaturday,
+                      cell.isCurrentMonth && !showWalkStyle && dayOfWeek === 0 && styles.daySunday,
+                      cell.isCurrentMonth && !showWalkStyle && dayOfWeek === 6 && styles.daySaturday,
                     ]}
                   >
                     {cell.date.getDate()}
                   </Text>
                 </View>
-                {hasSessions && cell.isCurrentMonth && <View style={styles.dot} />}
+                {showWalkStyle && <View style={styles.dot} />}
               </TouchableOpacity>
             );
           })}
         </View>
 
-        {/* Month summary */}
-        <View style={styles.summaryRow}>
-          <SummaryCard label="散歩日数" value={`${summary.walkDays}`} unit="日" />
-          <SummaryCard
-            label="累計歩数"
-            value={summary.totalSteps.toLocaleString()}
-            unit="歩"
-          />
-          <SummaryCard label="連続日数" value={`${summary.currentStreak}`} unit="日" />
+        {/* Month summary - 2x2 grid */}
+        <View style={styles.summaryGrid}>
+          <View style={styles.summaryGridRow}>
+            <SummaryCard label="散歩日数" value={`${summary.walkDays}`} unit="日" />
+            <SummaryCard
+              label="散歩歩数"
+              value={summary.sessionSteps.toLocaleString()}
+              unit="歩"
+            />
+          </View>
+          <View style={styles.summaryGridRow}>
+            <SummaryCard
+              label="月間歩数"
+              value={monthTotalSteps != null ? monthTotalSteps.toLocaleString() : '—'}
+              unit={monthTotalSteps != null ? '歩' : ''}
+              loading={monthStepsLoading}
+            />
+            <SummaryCard label="連続日数" value={`${summary.currentStreak}`} unit="日" />
+          </View>
         </View>
       </View>
 
@@ -179,18 +223,24 @@ function SummaryCard({
   label,
   value,
   unit,
+  loading,
 }: {
   label: string;
   value: string;
   unit: string;
+  loading?: boolean;
 }) {
   return (
     <View style={styles.summaryCard}>
       <Text style={styles.summaryLabel}>{label}</Text>
-      <Text style={styles.summaryValue}>
-        {value}
-        <Text style={styles.summaryUnit}> {unit}</Text>
-      </Text>
+      {loading ? (
+        <ActivityIndicator size="small" color={colors.textMuted} style={styles.summaryLoader} />
+      ) : (
+        <Text style={styles.summaryValue}>
+          {value}
+          <Text style={styles.summaryUnit}> {unit}</Text>
+        </Text>
+      )}
     </View>
   );
 }
@@ -259,6 +309,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  walkDayCircle: {
+    backgroundColor: colors.sageLighter,
+  },
   todayCircle: {
     borderWidth: 2,
     borderColor: colors.primary,
@@ -269,6 +322,10 @@ const styles = StyleSheet.create({
   },
   dayTextOther: {
     color: colors.textLight,
+  },
+  dayTextWalk: {
+    fontWeight: '600',
+    color: colors.sageDark,
   },
   dayTextToday: {
     fontWeight: '700',
@@ -288,37 +345,43 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  // Summary
-  summaryRow: {
+  // Summary - 2x2 grid
+  summaryGrid: {
+    marginTop: 16,
+    gap: 8,
+  },
+  summaryGridRow: {
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 20,
+    gap: 8,
   },
   summaryCard: {
     flex: 1,
     backgroundColor: colors.surface,
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 10,
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.borderSoft,
   },
   summaryLabel: {
-    fontSize: 11,
+    fontSize: 10,
     color: colors.textMuted,
-    marginBottom: 6,
+    marginBottom: 4,
     letterSpacing: 1,
   },
   summaryValue: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '700',
     color: colors.text,
     fontVariant: ['tabular-nums'],
   },
   summaryUnit: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '500',
     color: colors.textMuted,
+  },
+  summaryLoader: {
+    height: 22,
   },
 });

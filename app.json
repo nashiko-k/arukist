@@ -19,7 +19,10 @@
       "bundleIdentifier": "com.nashiko.arukist",
       "supportsTablet": false,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleLocalizations": ["ja", "en"],
+        "CFBundleDevelopmentRegion": "ja_JP",
+        "NSMotionUsageDescription": "散歩中の歩数をリアルタイムで計測するために使用します"
       }
     },
     "android": {
@@ -39,6 +42,13 @@
         {
           "healthSharePermission": "散歩の歩数や活動量を取得するために使用します",
           "healthUpdatePermission": "散歩中の活動を健康データに記録するために使用します"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "散歩中の風景や思い出を撮影するために使用します",
+          "photosPermission": "撮影済みの写真を散歩記録に追加するために使用します"
         }
       ],
       [
