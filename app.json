@@ -22,7 +22,8 @@
         "ITSAppUsesNonExemptEncryption": false,
         "CFBundleLocalizations": ["ja", "en"],
         "CFBundleDevelopmentRegion": "ja_JP",
-        "NSMotionUsageDescription": "散歩中の歩数をリアルタイムで計測するために使用します"
+        "NSMotionUsageDescription": "散歩中の歩数をリアルタイムで計測するために使用します",
+        "NSLocationWhenInUseUsageDescription": "散歩前のお天気や気温を表示するためにおおよその位置を使います"
       }
     },
     "android": {
@@ -42,6 +43,12 @@
         {
           "healthSharePermission": "散歩の歩数や活動量を取得するために使用します",
           "healthUpdatePermission": "散歩中の活動を健康データに記録するために使用します"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "散歩前のお天気や気温を表示するためにおおよその位置を使います"
         }
       ],
       [

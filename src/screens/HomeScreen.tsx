@@ -14,10 +14,14 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ConditionCard from '../components/ConditionCard';
+import { useCondition } from '../hooks/useCondition';
 import { useHealth } from '../hooks/useHealth';
 import { deletePhoto } from '../storage/photos';
 import { saveSession } from '../storage/sessions';
 import { colors } from '../theme/colors';
+import { buildGreeting } from '../utils/greeting';
+import type { Weather } from '../utils/weather';
 import {
   PLACE_LABEL_ORDER,
   PLACE_LABEL_TEXT,
@@ -50,6 +54,7 @@ function makeSessionId(startTime: number): string {
 
 export default function HomeScreen() {
   const { requestPermissions, getTodaySteps } = useHealth();
+  const condition = useCondition();
 
   const [phase, setPhase] = useState<Phase>('idle');
   const [permissionReady, setPermissionReady] = useState(false);
@@ -265,6 +270,9 @@ export default function HomeScreen() {
           loading={todayLoading}
           error={permissionError}
           permissionReady={permissionReady}
+          weather={condition.weather}
+          weatherLoading={condition.loading}
+          weatherError={condition.error}
           onStart={handleStart}
         />
       )}
@@ -304,23 +312,49 @@ type PreWalkProps = {
   loading: boolean;
   error: string | null;
   permissionReady: boolean;
+  weather: Weather | null;
+  weatherLoading: boolean;
+  weatherError: string | null;
   onStart: () => void;
 };
 
-function PreWalkView({ todaySteps, loading, error, permissionReady, onStart }: PreWalkProps) {
+function PreWalkView({
+  todaySteps,
+  loading,
+  error,
+  permissionReady,
+  weather,
+  weatherLoading,
+  weatherError,
+  onStart,
+}: PreWalkProps) {
+  const { headline, comment } = buildGreeting(new Date(), weather);
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>アルキスト</Text>
-      <View style={styles.card}>
-        <Text style={styles.label}>今日の歩数</Text>
+    <ScrollView
+      style={styles.preScroll}
+      contentContainerStyle={styles.preContent}
+      showsVerticalScrollIndicator={false}
+    >
+      <Text style={styles.titleSmall}>アルキスト</Text>
+
+      <View style={styles.greetingBlock}>
+        <Text style={styles.greetingHeadline}>{headline}</Text>
+        <Text style={styles.greetingComment}>{comment}</Text>
+      </View>
+
+      <ConditionCard weather={weather} loading={weatherLoading} error={weatherError} />
+
+      <View style={styles.stepsRow}>
+        <Text style={styles.stepsLabel}>今日の歩数</Text>
         {error ? (
           <Text style={styles.errorText}>{error}</Text>
         ) : loading ? (
           <ActivityIndicator color={colors.primary} />
         ) : (
-          <Text style={styles.todayValue}>
+          <Text style={styles.stepsValue}>
             {(todaySteps ?? 0).toLocaleString()}
-            <Text style={styles.todayUnit}> 歩</Text>
+            <Text style={styles.stepsUnit}> 歩</Text>
           </Text>
         )}
       </View>
@@ -334,7 +368,7 @@ function PreWalkView({ todaySteps, loading, error, permissionReady, onStart }: P
         <Ionicons name="walk" size={22} color={colors.surface} style={styles.startIcon} />
         <Text style={styles.startButtonText}>散歩を始める</Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -591,37 +625,63 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
 
-  // Common
-  title: {
-    fontSize: 32,
+  // PreWalk
+  preScroll: {
+    flex: 1,
+  },
+  preContent: {
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 48,
+    alignItems: 'center',
+  },
+  titleSmall: {
+    fontSize: 22,
     fontWeight: '600',
     color: colors.text,
     letterSpacing: 2,
-    marginBottom: 32,
+    marginBottom: 20,
   },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    paddingVertical: 28,
-    paddingHorizontal: 36,
+  greetingBlock: {
     alignItems: 'center',
-    minWidth: 260,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    marginBottom: 40,
+    marginBottom: 24,
   },
-  label: {
+  greetingHeadline: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  greetingComment: {
     fontSize: 14,
     color: colors.textMuted,
-    marginBottom: 12,
+    textAlign: 'center',
+    lineHeight: 22,
+    paddingHorizontal: 12,
   },
-  todayValue: {
-    fontSize: 44,
+  stepsRow: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    width: '100%',
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    marginBottom: 28,
+  },
+  stepsLabel: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginBottom: 8,
+  },
+  stepsValue: {
+    fontSize: 36,
     fontWeight: '700',
     color: colors.primaryDark,
   },
-  todayUnit: {
-    fontSize: 18,
+  stepsUnit: {
+    fontSize: 16,
     fontWeight: '500',
     color: colors.textMuted,
   },
