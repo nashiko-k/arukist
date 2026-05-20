@@ -9,13 +9,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSessionSteps } from '../hooks/useSessionSteps';
 import { getPhotosByIds } from '../storage/photos';
 import { colors } from '../theme/colors';
 import type { WalkPhoto } from '../types/photo';
 import { PLACE_LABEL_TEXT } from '../types/place';
 import type { WalkSession } from '../types/walk';
 import { formatDate } from '../utils/dates';
-import { getSessionStepCount } from '../utils/walkDisplay';
 
 type Props = {
   visible: boolean;
@@ -72,51 +72,77 @@ export default function SessionDetailModal({ visible, date, sessions, onClose }:
           </View>
 
           <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
-            {sessions.map((s, i) => {
-              const steps = getSessionStepCount(s);
-              const calories = steps * 0.04;
-              const sessionPhotos = photoMap[s.id] ?? [];
-              return (
-                <View key={s.id} style={styles.sessionCard}>
-                  {sessions.length > 1 && (
-                    <Text style={styles.sessionIndex}>{i + 1}回目</Text>
-                  )}
-                  <DetailRow
-                    label="時間"
-                    value={`${formatTime(s.startTime)} 〜 ${formatTime(s.endTime)}`}
-                  />
-                  <DetailRow label="経過" value={formatDuration(s.endTime - s.startTime)} />
-                  <DetailRow label="歩数" value={`${steps.toLocaleString()} 歩`} />
-                  <DetailRow label="カロリー" value={`${calories.toFixed(1)} kcal`} />
-                  {sessionPhotos.length > 0 && (
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      style={styles.photoScroll}
-                      contentContainerStyle={styles.photoRow}
-                    >
-                      {sessionPhotos.map((p) => (
-                        <Image key={p.id} source={{ uri: p.uri }} style={styles.photoThumb} />
-                      ))}
-                    </ScrollView>
-                  )}
-                  {s.placeLabel && (
-                    <View style={styles.placeRow}>
-                      <View style={styles.placeChip}>
-                        <Text style={styles.placeChipText}>
-                          {PLACE_LABEL_TEXT[s.placeLabel]}
-                        </Text>
-                      </View>
-                    </View>
-                  )}
-                  {s.memo !== '' && <Text style={styles.memo}>{s.memo}</Text>}
-                </View>
-              );
-            })}
+            {sessions.map((s, i) => (
+              <SessionCard
+                key={s.id}
+                session={s}
+                index={i}
+                total={sessions.length}
+                photos={photoMap[s.id] ?? []}
+              />
+            ))}
           </ScrollView>
         </View>
       </View>
     </Modal>
+  );
+}
+
+function SessionCard({
+  session,
+  index,
+  total,
+  photos,
+}: {
+  session: WalkSession;
+  index: number;
+  total: number;
+  photos: WalkPhoto[];
+}) {
+  const steps = useSessionSteps(session.startTime, session.endTime);
+  const calories = steps != null ? steps * 0.04 : null;
+
+  return (
+    <View style={styles.sessionCard}>
+      {total > 1 && (
+        <Text style={styles.sessionIndex}>{index + 1}回目</Text>
+      )}
+      <DetailRow
+        label="時間"
+        value={`${formatTime(session.startTime)} 〜 ${formatTime(session.endTime)}`}
+      />
+      <DetailRow label="経過" value={formatDuration(session.endTime - session.startTime)} />
+      <DetailRow
+        label="歩数"
+        value={steps != null ? `${steps.toLocaleString()} 歩` : '取得中…'}
+      />
+      <DetailRow
+        label="カロリー"
+        value={calories != null ? `${calories.toFixed(1)} kcal` : '---'}
+      />
+      {photos.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.photoScroll}
+          contentContainerStyle={styles.photoRow}
+        >
+          {photos.map((p) => (
+            <Image key={p.id} source={{ uri: p.uri }} style={styles.photoThumb} />
+          ))}
+        </ScrollView>
+      )}
+      {session.placeLabel && (
+        <View style={styles.placeRow}>
+          <View style={styles.placeChip}>
+            <Text style={styles.placeChipText}>
+              {PLACE_LABEL_TEXT[session.placeLabel]}
+            </Text>
+          </View>
+        </View>
+      )}
+      {session.memo !== '' && <Text style={styles.memo}>{session.memo}</Text>}
+    </View>
   );
 }
 

@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import SessionDetailModal from '../components/SessionDetailModal';
-import { useHealth } from '../hooks/useHealth';
+import { useHealth, getStepsForTimeRange } from '../hooks/useHealth';
 import { getAllSessions } from '../storage/sessions';
 import { colors } from '../theme/colors';
 import type { WalkSession } from '../types/walk';
@@ -40,6 +40,8 @@ export default function CalendarScreen() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [monthTotalSteps, setMonthTotalSteps] = useState<number | null>(null);
   const [monthStepsLoading, setMonthStepsLoading] = useState(false);
+  const [sessionStepsTotal, setSessionStepsTotal] = useState<number | null>(null);
+  const [sessionStepsLoading, setSessionStepsLoading] = useState(false);
 
   const loadSessions = useCallback(async () => {
     const all = await getAllSessions();
@@ -57,6 +59,7 @@ export default function CalendarScreen() {
     return unsub;
   }, [navigation, loadSessions]);
 
+  // 月間歩数（HealthKit 全体）
   useEffect(() => {
     let cancelled = false;
     setMonthStepsLoading(true);
@@ -78,6 +81,36 @@ export default function CalendarScreen() {
     })();
     return () => { cancelled = true; };
   }, [year, month, getStepsForRange]);
+
+  // 散歩歩数（各セッションの時間範囲で HealthKit 問い合わせ）
+  useEffect(() => {
+    const monthStart = new Date(year, month, 1).getTime();
+    const monthEnd = new Date(year, month + 1, 1).getTime();
+    const inMonth = sessions.filter((s) => s.startTime >= monthStart && s.startTime < monthEnd);
+
+    if (inMonth.length === 0) {
+      setSessionStepsTotal(0);
+      setSessionStepsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setSessionStepsLoading(true);
+    setSessionStepsTotal(null);
+
+    Promise.all(
+      inMonth.map((s) =>
+        getStepsForTimeRange(new Date(s.startTime), new Date(s.endTime)).catch(() => 0),
+      ),
+    ).then((results) => {
+      if (!cancelled) {
+        setSessionStepsTotal(results.reduce((sum, v) => sum + v, 0));
+        setSessionStepsLoading(false);
+      }
+    });
+
+    return () => { cancelled = true; };
+  }, [sessions, year, month]);
 
   const sessionsByDay = getSessionsByDay(sessions);
   const grid = getMonthGrid(year, month);
@@ -193,8 +226,9 @@ export default function CalendarScreen() {
             <SummaryCard label="散歩日数" value={`${summary.walkDays}`} unit="日" />
             <SummaryCard
               label="散歩歩数"
-              value={summary.sessionSteps.toLocaleString()}
-              unit="歩"
+              value={sessionStepsTotal != null ? sessionStepsTotal.toLocaleString() : '—'}
+              unit={sessionStepsTotal != null ? '歩' : ''}
+              loading={sessionStepsLoading}
             />
           </View>
           <View style={styles.summaryGridRow}>

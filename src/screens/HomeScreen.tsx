@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pedometer } from 'expo-sensors';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActionSheetIOS,
@@ -17,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import ConditionCard from '../components/ConditionCard';
 import { useCondition } from '../hooks/useCondition';
 import { useHealth } from '../hooks/useHealth';
+import { useSessionSteps } from '../hooks/useSessionSteps';
 import { deletePhoto } from '../storage/photos';
 import { saveSession } from '../storage/sessions';
 import { colors } from '../theme/colors';
@@ -29,6 +29,7 @@ import {
 } from '../types/place';
 import type { WalkPhoto } from '../types/photo';
 import type { WalkSession } from '../types/walk';
+import { BUILD_TAG } from '../utils/buildInfo';
 import { captureFromCamera, captureFromLibrary } from '../utils/photoCapture';
 
 type Phase = 'idle' | 'walking' | 'finished';
@@ -65,20 +66,16 @@ export default function HomeScreen() {
 
   const [startTime, setStartTime] = useState(0);
   const [endTime, setEndTime] = useState(0);
-  const [startSteps, setStartSteps] = useState(0);
-  const [endSteps, setEndSteps] = useState(0);
 
-  // Pedometer
-  const [pedometerSteps, setPedometerSteps] = useState(0);
-  const [pedometerAvailable, setPedometerAvailable] = useState(true);
-  const pedometerSubRef = useRef<{ remove: () => void } | null>(null);
+  const [startStepsBaseline, setStartStepsBaseline] = useState(0);
+  const [currentTodaySteps, setCurrentTodaySteps] = useState(0);
 
-  // 散歩後の入力
+  const [sessionWeather, setSessionWeather] = useState<Weather | undefined>(undefined);
+
   const [memo, setMemo] = useState('');
   const [placeLabel, setPlaceLabel] = useState<PlaceLabel | null>(null);
   const [photos, setPhotos] = useState<WalkPhoto[]>([]);
 
-  // 経過時間の表示更新用
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
@@ -98,15 +95,6 @@ export default function HomeScreen() {
     };
   }, [requestPermissions]);
 
-  useEffect(() => {
-    let cancelled = false;
-    Pedometer.isAvailableAsync().then((available) => {
-      if (!cancelled) setPedometerAvailable(available);
-    });
-    return () => { cancelled = true; };
-  }, []);
-
-  // 'idle' に入る・戻るたびに今日の歩数を取得
   const refreshTodaySteps = useCallback(async () => {
     if (!permissionReady) return;
     setTodayLoading(true);
@@ -126,7 +114,7 @@ export default function HomeScreen() {
     }
   }, [phase, refreshTodaySteps]);
 
-  // 'walking' の間、1秒ごとに now を更新
+  // 1秒タイマー（経過時間の表示用）
   useEffect(() => {
     if (phase !== 'walking') return;
     setNow(Date.now());
@@ -134,44 +122,40 @@ export default function HomeScreen() {
     return () => clearInterval(id);
   }, [phase]);
 
+  // 30秒おきに HealthKit をポーリング（散歩中の歩数表示）
+  useEffect(() => {
+    if (phase !== 'walking') return;
+    const poll = () => {
+      getTodaySteps()
+        .then((v) => setCurrentTodaySteps(v))
+        .catch(() => {});
+    };
+    const id = setInterval(poll, 30000);
+    return () => clearInterval(id);
+  }, [phase, getTodaySteps]);
+
+  const walkSteps = Math.max(0, currentTodaySteps - startStepsBaseline);
+
   const handleStart = useCallback(async () => {
+    let baseline = 0;
     try {
-      const s = await getTodaySteps();
-      setStartSteps(s);
-      setPedometerSteps(0);
-      const t = Date.now();
-      setStartTime(t);
-      setNow(t);
-
-      if (pedometerAvailable) {
-        const sub = Pedometer.watchStepCount((result) => {
-          setPedometerSteps(result.steps);
-        });
-        pedometerSubRef.current = sub;
-      }
-
-      setPhase('walking');
-    } catch (e) {
-      Alert.alert('歩数の取得に失敗しました', e instanceof Error ? e.message : '');
-    }
-  }, [getTodaySteps, pedometerAvailable]);
-
-  const handleEnd = useCallback(async () => {
-    if (pedometerSubRef.current) {
-      pedometerSubRef.current.remove();
-      pedometerSubRef.current = null;
-    }
-
-    let finalSteps = startSteps;
-    try {
-      finalSteps = await getTodaySteps();
+      baseline = await getTodaySteps();
     } catch {
-      // HealthKit 取得失敗時は startSteps のまま
+      // HealthKit 取得失敗でも散歩は始められる
     }
-    setEndSteps(finalSteps);
+    setStartStepsBaseline(baseline);
+    setCurrentTodaySteps(baseline);
+    setSessionWeather(condition.weather ?? undefined);
+    const t = Date.now();
+    setStartTime(t);
+    setNow(t);
+    setPhase('walking');
+  }, [getTodaySteps, condition.weather]);
+
+  const handleEnd = useCallback(() => {
     setEndTime(Date.now());
     setPhase('finished');
-  }, [startSteps, getTodaySteps]);
+  }, []);
 
   const handleCapture = useCallback(async () => {
     try {
@@ -186,24 +170,20 @@ export default function HomeScreen() {
     setMemo('');
     setPlaceLabel(null);
     setPhotos([]);
-    setPedometerSteps(0);
+    setStartStepsBaseline(0);
+    setCurrentTodaySteps(0);
+    setSessionWeather(undefined);
   }, []);
-
-  const displaySteps = pedometerAvailable
-    ? pedometerSteps
-    : Math.max(0, endSteps - startSteps);
 
   const handleSave = useCallback(async () => {
     const session: WalkSession = {
       id: makeSessionId(startTime),
       startTime,
       endTime,
-      startSteps,
-      endSteps,
-      sessionSteps: pedometerAvailable ? pedometerSteps : undefined,
       memo,
       placeLabel,
       photoIds: photos.map((p) => p.id),
+      weather: sessionWeather,
     };
     try {
       await saveSession(session);
@@ -213,7 +193,7 @@ export default function HomeScreen() {
     }
     resetSessionInputs();
     setPhase('idle');
-  }, [startTime, endTime, startSteps, endSteps, pedometerSteps, pedometerAvailable, memo, placeLabel, photos, resetSessionInputs]);
+  }, [startTime, endTime, memo, placeLabel, photos, sessionWeather, resetSessionInputs]);
 
   const handleDiscard = useCallback(() => {
     Alert.alert('今回の散歩を破棄しますか？', 'この操作は元に戻せません', [
@@ -279,7 +259,7 @@ export default function HomeScreen() {
       {phase === 'walking' && (
         <DuringWalkView
           elapsedMs={now - startTime}
-          sessionSteps={pedometerSteps}
+          walkSteps={walkSteps}
           photoCount={photos.length}
           onCapture={handleCapture}
           onEnd={handleEnd}
@@ -287,8 +267,8 @@ export default function HomeScreen() {
       )}
       {phase === 'finished' && (
         <PostWalkView
-          durationMs={endTime - startTime}
-          sessionSteps={displaySteps}
+          startTime={startTime}
+          endTime={endTime}
           memo={memo}
           placeLabel={placeLabel}
           photos={photos}
@@ -336,7 +316,7 @@ function PreWalkView({
       contentContainerStyle={styles.preContent}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={styles.titleSmall}>アルキスト</Text>
+      <Text style={styles.titleSmall}>アルキスト [{BUILD_TAG}]</Text>
 
       <View style={styles.greetingBlock}>
         <Text style={styles.greetingHeadline}>{headline}</Text>
@@ -377,13 +357,13 @@ function PreWalkView({
 // -----------------------------------------------------------------------------
 type DuringWalkProps = {
   elapsedMs: number;
-  sessionSteps: number;
+  walkSteps: number;
   photoCount: number;
   onCapture: () => void;
   onEnd: () => void;
 };
 
-function DuringWalkView({ elapsedMs, sessionSteps, photoCount, onCapture, onEnd }: DuringWalkProps) {
+function DuringWalkView({ elapsedMs, walkSteps, photoCount, onCapture, onEnd }: DuringWalkProps) {
   const [holdProgress, setHoldProgress] = useState(0);
   const holdStartRef = useRef<number | null>(null);
   const holdIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -431,7 +411,8 @@ function DuringWalkView({ elapsedMs, sessionSteps, photoCount, onCapture, onEnd 
         </View>
         <View style={styles.statCard}>
           <Text style={styles.statCardLabel}>歩数</Text>
-          <Text style={styles.statCardValue}>{sessionSteps.toLocaleString()}</Text>
+          <Text style={styles.statCardValue}>{walkSteps.toLocaleString()}</Text>
+          <Text style={styles.statCardNote}>※少し遅れて反映されます</Text>
         </View>
       </View>
 
@@ -470,8 +451,8 @@ function DuringWalkView({ elapsedMs, sessionSteps, photoCount, onCapture, onEnd 
 // PostWalkView
 // -----------------------------------------------------------------------------
 type PostWalkProps = {
-  durationMs: number;
-  sessionSteps: number;
+  startTime: number;
+  endTime: number;
   memo: string;
   placeLabel: PlaceLabel | null;
   photos: WalkPhoto[];
@@ -484,8 +465,8 @@ type PostWalkProps = {
 };
 
 function PostWalkView({
-  durationMs,
-  sessionSteps,
+  startTime,
+  endTime,
   memo,
   placeLabel,
   photos,
@@ -496,7 +477,9 @@ function PostWalkView({
   onSave,
   onDiscard,
 }: PostWalkProps) {
-  const calories = sessionSteps * 0.04;
+  const steps = useSessionSteps(startTime, endTime);
+  const durationMs = endTime - startTime;
+  const calories = steps != null ? steps * 0.04 : null;
 
   const togglePlace = (label: PlaceLabel) => {
     onChangePlaceLabel(placeLabel === label ? null : label);
@@ -517,9 +500,15 @@ function PostWalkView({
       <View style={styles.summaryCard}>
         <SummaryRow label="経過時間" value={formatDuration(durationMs)} />
         <View style={styles.summaryDivider} />
-        <SummaryRow label="歩数" value={`${sessionSteps.toLocaleString()} 歩`} />
+        <SummaryRow
+          label="歩数"
+          value={steps != null ? `${steps.toLocaleString()} 歩` : '取得中…'}
+        />
         <View style={styles.summaryDivider} />
-        <SummaryRow label="消費カロリー（概算）" value={`${calories.toFixed(1)} kcal`} />
+        <SummaryRow
+          label="消費カロリー（概算）"
+          value={calories != null ? `${calories.toFixed(1)} kcal` : '---'}
+        />
       </View>
 
       <View style={styles.section}>
@@ -755,6 +744,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
     fontVariant: ['tabular-nums'],
+  },
+  statCardNote: {
+    fontSize: 10,
+    color: colors.textLight,
+    marginTop: 4,
   },
 
   // Camera button (during walk)

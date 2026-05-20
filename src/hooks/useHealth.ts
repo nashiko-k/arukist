@@ -78,11 +78,29 @@ function getStepsForRange(start: Date, end: Date): Promise<DailySteps[]> {
   });
 }
 
+export function getStepsForTimeRange(start: Date, end: Date): Promise<number> {
+  const options: HealthInputOptions = {
+    startDate: start.toISOString(),
+    endDate: end.toISOString(),
+    includeManuallyAdded: true,
+  };
+  return new Promise((resolve, reject) => {
+    AppleHealthKit.getStepCount(options, (err, results: HealthValue) => {
+      if (err) {
+        reject(new Error(typeof err === 'string' ? err : '歩数の取得に失敗しました'));
+      } else {
+        resolve(results?.value ?? 0);
+      }
+    });
+  });
+}
+
 export function useHealth() {
   return {
     requestPermissions: useCallback(requestPermissions, []),
     getTodaySteps: useCallback(getTodaySteps, []),
     getStepsForDate: useCallback(getStepsForDate, []),
     getStepsForRange: useCallback(getStepsForRange, []),
+    getStepsForTimeRange: useCallback(getStepsForTimeRange, []),
   };
 }

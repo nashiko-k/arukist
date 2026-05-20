@@ -8,11 +8,10 @@ function migrateSession(raw: any): WalkSession {
     id: raw.id,
     startTime: raw.startTime,
     endTime: raw.endTime,
-    startSteps: raw.startSteps,
-    endSteps: raw.endSteps,
     memo: raw.memo ?? '',
     placeLabel: raw.placeLabel ?? null,
     photoIds: raw.photoIds ?? [],
+    weather: raw.weather,
   };
 }
 
