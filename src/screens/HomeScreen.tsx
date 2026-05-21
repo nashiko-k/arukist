@@ -28,7 +28,6 @@ import {
 } from '../types/place';
 import type { WalkPhoto } from '../types/photo';
 import type { WalkSession } from '../types/walk';
-import { BUILD_TAG } from '../utils/buildInfo';
 import { captureFromCamera, captureFromLibrary } from '../utils/photoCapture';
 
 type Phase = 'idle' | 'walking' | 'finished';
@@ -319,7 +318,7 @@ function PreWalkView({
       contentContainerStyle={styles.preContent}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={styles.titleSmall}>アルキスト [{BUILD_TAG}]</Text>
+      <Text style={styles.titleSmall}>アルキスト</Text>
 
       <View style={styles.greetingBlock}>
         <Text style={styles.greetingHeadline}>{headline}</Text>
