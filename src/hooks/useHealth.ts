@@ -3,6 +3,7 @@ import type {
   AppleHealthKit as AppleHealthKitType,
   HealthInputOptions,
   HealthKitPermissions,
+  HealthObserver,
   HealthValue,
 } from 'react-native-health';
 
@@ -82,14 +83,15 @@ export function getStepsForTimeRange(start: Date, end: Date): Promise<number> {
   const options: HealthInputOptions = {
     startDate: start.toISOString(),
     endDate: end.toISOString(),
+    type: 'StepCount' as HealthObserver,
     includeManuallyAdded: true,
   };
   return new Promise((resolve, reject) => {
-    AppleHealthKit.getDailyStepCountSamples(options, (err, results) => {
+    AppleHealthKit.getSamples(options, (err, results) => {
       if (err) {
         reject(new Error(typeof err === 'string' ? err : '歩数の取得に失敗しました'));
       } else {
-        const total = (results ?? []).reduce((sum, r) => sum + r.value, 0);
+        const total = (results ?? []).reduce((sum, r) => sum + (r.value ?? 0), 0);
         resolve(total);
       }
     });
