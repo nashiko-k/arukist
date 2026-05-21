@@ -85,11 +85,12 @@ export function getStepsForTimeRange(start: Date, end: Date): Promise<number> {
     includeManuallyAdded: true,
   };
   return new Promise((resolve, reject) => {
-    AppleHealthKit.getStepCount(options, (err, results: HealthValue) => {
+    AppleHealthKit.getDailyStepCountSamples(options, (err, results) => {
       if (err) {
         reject(new Error(typeof err === 'string' ? err : '歩数の取得に失敗しました'));
       } else {
-        resolve(results?.value ?? 0);
+        const total = (results ?? []).reduce((sum, r) => sum + r.value, 0);
+        resolve(total);
       }
     });
   });
