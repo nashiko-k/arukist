@@ -8,6 +8,7 @@ function migrateSession(raw: any): WalkSession {
     id: raw.id,
     startTime: raw.startTime,
     endTime: raw.endTime,
+    steps: raw.steps ?? 0,
     memo: raw.memo ?? '',
     placeLabel: raw.placeLabel ?? null,
     photoIds: raw.photoIds ?? [],

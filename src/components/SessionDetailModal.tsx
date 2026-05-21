@@ -9,7 +9,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSessionSteps } from '../hooks/useSessionSteps';
 import { getPhotosByIds } from '../storage/photos';
 import { colors } from '../theme/colors';
 import type { WalkPhoto } from '../types/photo';
@@ -99,8 +98,8 @@ function SessionCard({
   total: number;
   photos: WalkPhoto[];
 }) {
-  const steps = useSessionSteps(session.startTime, session.endTime);
-  const calories = steps != null ? steps * 0.04 : null;
+  const steps = session.steps;
+  const calories = steps * 0.04;
 
   return (
     <View style={styles.sessionCard}>
@@ -114,11 +113,11 @@ function SessionCard({
       <DetailRow label="経過" value={formatDuration(session.endTime - session.startTime)} />
       <DetailRow
         label="歩数"
-        value={steps != null ? `${steps.toLocaleString()} 歩` : '取得中…'}
+        value={`${steps.toLocaleString()} 歩`}
       />
       <DetailRow
         label="カロリー"
-        value={calories != null ? `${calories.toFixed(1)} kcal` : '---'}
+        value={`${calories.toFixed(1)} kcal`}
       />
       {photos.length > 0 && (
         <ScrollView

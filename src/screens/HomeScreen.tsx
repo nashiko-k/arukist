@@ -16,7 +16,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import ConditionCard from '../components/ConditionCard';
 import { useCondition } from '../hooks/useCondition';
 import { useHealth } from '../hooks/useHealth';
-import { useSessionSteps } from '../hooks/useSessionSteps';
 import { deletePhoto } from '../storage/photos';
 import { saveSession } from '../storage/sessions';
 import { colors } from '../theme/colors';
@@ -122,14 +121,15 @@ export default function HomeScreen() {
     return () => clearInterval(id);
   }, [phase]);
 
-  // 30秒おきに HealthKit をポーリング（散歩中の歩数表示）
+  // 30秒おきに HealthKit をポーリング（散歩中〜記録前の歩数表示）
   useEffect(() => {
-    if (phase !== 'walking') return;
+    if (phase !== 'walking' && phase !== 'finished') return;
     const poll = () => {
       getTodaySteps()
         .then((v) => setCurrentTodaySteps(v))
         .catch(() => {});
     };
+    poll();
     const id = setInterval(poll, 30000);
     return () => clearInterval(id);
   }, [phase, getTodaySteps]);
@@ -176,10 +176,12 @@ export default function HomeScreen() {
   }, []);
 
   const handleSave = useCallback(async () => {
+    const steps = Math.max(0, currentTodaySteps - startStepsBaseline);
     const session: WalkSession = {
       id: makeSessionId(startTime),
       startTime,
       endTime,
+      steps,
       memo,
       placeLabel,
       photoIds: photos.map((p) => p.id),
@@ -193,7 +195,7 @@ export default function HomeScreen() {
     }
     resetSessionInputs();
     setPhase('idle');
-  }, [startTime, endTime, memo, placeLabel, photos, sessionWeather, resetSessionInputs]);
+  }, [startTime, endTime, currentTodaySteps, startStepsBaseline, memo, placeLabel, photos, sessionWeather, resetSessionInputs]);
 
   const handleDiscard = useCallback(() => {
     Alert.alert('今回の散歩を破棄しますか？', 'この操作は元に戻せません', [
@@ -269,6 +271,7 @@ export default function HomeScreen() {
         <PostWalkView
           startTime={startTime}
           endTime={endTime}
+          walkSteps={walkSteps}
           memo={memo}
           placeLabel={placeLabel}
           photos={photos}
@@ -453,6 +456,7 @@ function DuringWalkView({ elapsedMs, walkSteps, photoCount, onCapture, onEnd }: 
 type PostWalkProps = {
   startTime: number;
   endTime: number;
+  walkSteps: number;
   memo: string;
   placeLabel: PlaceLabel | null;
   photos: WalkPhoto[];
@@ -467,6 +471,7 @@ type PostWalkProps = {
 function PostWalkView({
   startTime,
   endTime,
+  walkSteps,
   memo,
   placeLabel,
   photos,
@@ -477,9 +482,8 @@ function PostWalkView({
   onSave,
   onDiscard,
 }: PostWalkProps) {
-  const steps = useSessionSteps(startTime, endTime);
   const durationMs = endTime - startTime;
-  const calories = steps != null ? steps * 0.04 : null;
+  const calories = walkSteps * 0.04;
 
   const togglePlace = (label: PlaceLabel) => {
     onChangePlaceLabel(placeLabel === label ? null : label);
@@ -502,14 +506,16 @@ function PostWalkView({
         <View style={styles.summaryDivider} />
         <SummaryRow
           label="歩数"
-          value={steps != null ? `${steps.toLocaleString()} 歩` : '取得中…'}
+          value={`${walkSteps.toLocaleString()} 歩`}
         />
         <View style={styles.summaryDivider} />
         <SummaryRow
           label="消費カロリー（概算）"
-          value={calories != null ? `${calories.toFixed(1)} kcal` : '---'}
+          value={`${calories.toFixed(1)} kcal`}
         />
       </View>
+
+      <Text style={styles.stepsHint}>※ 数値が安定するまで少し待ってから記録してください</Text>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>写真</Text>
@@ -890,6 +896,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textLight,
     textDecorationLine: 'underline',
+  },
+  stepsHint: {
+    fontSize: 11,
+    color: colors.textLight,
+    textAlign: 'center',
+    marginBottom: 24,
   },
 
   // PostWalk - sections
