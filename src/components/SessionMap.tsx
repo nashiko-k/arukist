@@ -10,6 +10,8 @@ type Props = {
   memo: string;
 };
 
+const MIN_DELTA = 0.005; // 約 500m
+
 type GeoPhoto = WalkPhoto & { latitude: number; longitude: number };
 
 function hasCoords(p: WalkPhoto): p is GeoPhoto {
@@ -50,13 +52,31 @@ export default function SessionMap({ photoIds, memo }: Props) {
 
   const shortMemo = memo.length > 50 ? `${memo.slice(0, 50)}...` : memo;
 
-  const fitToPins = () => {
-    mapRef.current?.fitToCoordinates(
-      geoPhotos.map((p) => ({ latitude: p.latitude, longitude: p.longitude })),
+  // ピン周辺の街並みが見えるよう、bbox から region を計算して即時移動する。
+  const onMapReady = () => {
+    if (geoPhotos.length === 0) return;
+
+    const lats = geoPhotos.map((p) => p.latitude);
+    const lngs = geoPhotos.map((p) => p.longitude);
+    const minLat = Math.min(...lats);
+    const maxLat = Math.max(...lats);
+    const minLng = Math.min(...lngs);
+    const maxLng = Math.max(...lngs);
+
+    const centerLat = (minLat + maxLat) / 2;
+    const centerLng = (minLng + maxLng) / 2;
+
+    const latDelta = Math.max((maxLat - minLat) * 1.5, MIN_DELTA);
+    const lngDelta = Math.max((maxLng - minLng) * 1.5, MIN_DELTA);
+
+    mapRef.current?.animateToRegion(
       {
-        edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
-        animated: false,
+        latitude: centerLat,
+        longitude: centerLng,
+        latitudeDelta: latDelta,
+        longitudeDelta: lngDelta,
       },
+      0, // 即時（アニメーションなし）
     );
   };
 
@@ -65,7 +85,7 @@ export default function SessionMap({ photoIds, memo }: Props) {
       <MapView
         ref={mapRef}
         style={styles.map}
-        onMapReady={fitToPins}
+        onMapReady={onMapReady}
         initialRegion={{
           latitude: geoPhotos[0].latitude,
           longitude: geoPhotos[0].longitude,
