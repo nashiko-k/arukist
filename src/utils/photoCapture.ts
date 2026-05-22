@@ -7,6 +7,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { savePhoto } from '../storage/photos';
 import type { WalkPhoto } from '../types/photo';
+import { getPhotoLocation } from './location';
 
 const PHOTO_DIR = `${documentDirectory}photos/`;
 
@@ -28,7 +29,18 @@ async function persistAndSave(sourceUri: string): Promise<WalkPhoto> {
   const ext = sourceUri.split('.').pop()?.toLowerCase() ?? 'jpg';
   const destUri = `${dir}${id}.${ext}`;
   await copyAsync({ from: sourceUri, to: destUri });
-  const photo: WalkPhoto = { id, uri: destUri, takenAt: Date.now() };
+
+  // GPS 座標はベストエフォート（取得失敗・タイムアウト時は null）
+  const location = await getPhotoLocation();
+
+  const photo: WalkPhoto = {
+    id,
+    uri: destUri,
+    takenAt: Date.now(),
+    ...(location
+      ? { latitude: location.latitude, longitude: location.longitude }
+      : {}),
+  };
   await savePhoto(photo);
   return photo;
 }

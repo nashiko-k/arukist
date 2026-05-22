@@ -23,3 +23,31 @@ export async function getCoarseLocation(): Promise<CoarseLocation | null> {
     return null;
   }
 }
+
+const PHOTO_LOCATION_TIMEOUT_MS = 5000;
+
+/**
+ * 写真用の現在地取得（〜100m 精度の Balanced）。
+ * ベストエフォート：権限なし・取得失敗・5秒タイムアウト時は null を返す（throw しない）。
+ */
+export async function getPhotoLocation(): Promise<CoarseLocation | null> {
+  try {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') return null;
+
+    const timeout = new Promise<null>((resolve) => {
+      setTimeout(() => resolve(null), PHOTO_LOCATION_TIMEOUT_MS);
+    });
+
+    const fetchLocation = Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Balanced,
+    }).then((pos) => ({
+      latitude: pos.coords.latitude,
+      longitude: pos.coords.longitude,
+    }));
+
+    return await Promise.race([fetchLocation, timeout]);
+  } catch {
+    return null;
+  }
+}
