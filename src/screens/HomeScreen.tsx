@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Pedometer } from 'expo-sensors';
 import ConditionCard from '../components/ConditionCard';
+import SessionMap from '../components/SessionMap';
 import { useCondition } from '../hooks/useCondition';
 import { useHealth } from '../hooks/useHealth';
 import { deletePhoto } from '../storage/photos';
@@ -574,6 +575,7 @@ function PostWalkView({
             <Ionicons name="add" size={28} color={colors.textLight} />
           </TouchableOpacity>
         </ScrollView>
+        <SessionMap photoIds={photos.map((p) => p.id)} memo={memo} />
       </View>
 
       <View style={styles.section}>

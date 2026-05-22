@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import SessionMap from './SessionMap';
 import { getPhotosByIds } from '../storage/photos';
 import { colors } from '../theme/colors';
 import type { WalkPhoto } from '../types/photo';
@@ -131,6 +132,7 @@ function SessionCard({
           ))}
         </ScrollView>
       )}
+      <SessionMap photoIds={session.photoIds} memo={session.memo} />
       {session.placeLabel && (
         <View style={styles.placeRow}>
           <View style={styles.placeChip}>
