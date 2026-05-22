@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Pedometer } from 'expo-sensors';
 import ConditionCard from '../components/ConditionCard';
 import { useCondition } from '../hooks/useCondition';
 import { useHealth } from '../hooks/useHealth';
@@ -65,8 +66,14 @@ export default function HomeScreen() {
   const [startTime, setStartTime] = useState(0);
   const [endTime, setEndTime] = useState(0);
 
+  // fallback 用に HealthKit baseline を一応保持（通常は CMPedometer を使用）
   const [startStepsBaseline, setStartStepsBaseline] = useState(0);
-  const [currentTodaySteps, setCurrentTodaySteps] = useState(0);
+
+  // CMPedometer ベースの歩数管理
+  const [walkSteps, setWalkSteps] = useState(0);
+  const [confirmedSteps, setConfirmedSteps] = useState<number | null>(null);
+  const [walkStartedAt, setWalkStartedAt] = useState<Date | null>(null);
+  const pedometerSubscription = useRef<ReturnType<typeof Pedometer.watchStepCount> | null>(null);
 
   const [sessionWeather, setSessionWeather] = useState<Weather | undefined>(undefined);
 
@@ -120,22 +127,8 @@ export default function HomeScreen() {
     return () => clearInterval(id);
   }, [phase]);
 
-  // 30秒おきに HealthKit をポーリング（散歩中〜記録前の歩数表示）
-  useEffect(() => {
-    if (phase !== 'walking' && phase !== 'finished') return;
-    const poll = () => {
-      getTodaySteps()
-        .then((v) => setCurrentTodaySteps(v))
-        .catch(() => {});
-    };
-    poll();
-    const id = setInterval(poll, 30000);
-    return () => clearInterval(id);
-  }, [phase, getTodaySteps]);
-
-  const walkSteps = Math.max(0, currentTodaySteps - startStepsBaseline);
-
   const handleStart = useCallback(async () => {
+    // fallback 用に HealthKit baseline を一応取得（通常は使わない）
     let baseline = 0;
     try {
       baseline = await getTodaySteps();
@@ -143,18 +136,56 @@ export default function HomeScreen() {
       // HealthKit 取得失敗でも散歩は始められる
     }
     setStartStepsBaseline(baseline);
-    setCurrentTodaySteps(baseline);
+
+    // CMPedometer のライブ計測を開始
+    const startedAt = new Date();
+    setWalkStartedAt(startedAt);
+    setWalkSteps(0);
+    setConfirmedSteps(null);
+    try {
+      await Pedometer.requestPermissionsAsync();
+    } catch {
+      // 権限取得失敗でも止めない（watchStepCount が発火しないだけ）
+    }
+    try {
+      pedometerSubscription.current = Pedometer.watchStepCount(({ steps }) => {
+        setWalkSteps(steps);
+      });
+    } catch {
+      pedometerSubscription.current = null;
+    }
+
     setSessionWeather(condition.weather ?? undefined);
-    const t = Date.now();
+    const t = startedAt.getTime();
     setStartTime(t);
     setNow(t);
     setPhase('walking');
   }, [getTodaySteps, condition.weather]);
 
-  const handleEnd = useCallback(() => {
-    setEndTime(Date.now());
+  const handleEnd = useCallback(async () => {
+    const ended = new Date();
+    setEndTime(ended.getTime());
+
+    // ライブ計測を停止
+    if (pedometerSubscription.current) {
+      pedometerSubscription.current.remove();
+      pedometerSubscription.current = null;
+    }
+
     setPhase('finished');
-  }, []);
+
+    // 散歩区間の確定歩数を取得（ライブ表示と同じ walkStartedAt 参照）
+    if (walkStartedAt) {
+      try {
+        const result = await Pedometer.getStepCountAsync(walkStartedAt, ended);
+        setConfirmedSteps(result.steps);
+      } catch {
+        setConfirmedSteps(walkSteps);
+      }
+    } else {
+      setConfirmedSteps(walkSteps);
+    }
+  }, [walkStartedAt, walkSteps]);
 
   const handleCapture = useCallback(async () => {
     try {
@@ -170,20 +201,15 @@ export default function HomeScreen() {
     setPlaceLabel(null);
     setPhotos([]);
     setStartStepsBaseline(0);
-    setCurrentTodaySteps(0);
+    setWalkSteps(0);
+    setConfirmedSteps(null);
+    setWalkStartedAt(null);
     setSessionWeather(undefined);
   }, []);
 
   const handleSave = useCallback(async () => {
-    // 保存時に HealthKit を読み直し、開始時 baseline との差分で確定歩数を算出。
-    // 取得失敗時のみ state の値で続行し、保存自体は止めない。
-    let finalToday = currentTodaySteps;
-    try {
-      finalToday = await getTodaySteps();
-    } catch {
-      // state の値で続行
-    }
-    const sessionSteps = Math.max(0, finalToday - startStepsBaseline);
+    // ライブ表示と同ソース（CMPedometer）の確定値を保存。
+    const sessionSteps = confirmedSteps ?? walkSteps ?? 0;
     const session: WalkSession = {
       id: makeSessionId(startTime),
       startTime,
@@ -202,7 +228,7 @@ export default function HomeScreen() {
     }
     resetSessionInputs();
     setPhase('idle');
-  }, [startTime, endTime, currentTodaySteps, startStepsBaseline, getTodaySteps, memo, placeLabel, photos, sessionWeather, resetSessionInputs]);
+  }, [startTime, endTime, confirmedSteps, walkSteps, memo, placeLabel, photos, sessionWeather, resetSessionInputs]);
 
   const handleDiscard = useCallback(() => {
     Alert.alert('今回の散歩を破棄しますか？', 'この操作は元に戻せません', [
@@ -278,7 +304,7 @@ export default function HomeScreen() {
         <PostWalkView
           startTime={startTime}
           endTime={endTime}
-          walkSteps={walkSteps}
+          walkSteps={confirmedSteps ?? walkSteps}
           memo={memo}
           placeLabel={placeLabel}
           photos={photos}
