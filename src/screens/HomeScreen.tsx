@@ -175,12 +175,20 @@ export default function HomeScreen() {
   }, []);
 
   const handleSave = useCallback(async () => {
-    const steps = Math.max(0, currentTodaySteps - startStepsBaseline);
+    // 保存時に HealthKit を読み直し、開始時 baseline との差分で確定歩数を算出。
+    // 取得失敗時のみ state の値で続行し、保存自体は止めない。
+    let finalToday = currentTodaySteps;
+    try {
+      finalToday = await getTodaySteps();
+    } catch {
+      // state の値で続行
+    }
+    const sessionSteps = Math.max(0, finalToday - startStepsBaseline);
     const session: WalkSession = {
       id: makeSessionId(startTime),
       startTime,
       endTime,
-      steps,
+      steps: sessionSteps,
       memo,
       placeLabel,
       photoIds: photos.map((p) => p.id),
@@ -194,7 +202,7 @@ export default function HomeScreen() {
     }
     resetSessionInputs();
     setPhase('idle');
-  }, [startTime, endTime, currentTodaySteps, startStepsBaseline, memo, placeLabel, photos, sessionWeather, resetSessionInputs]);
+  }, [startTime, endTime, currentTodaySteps, startStepsBaseline, getTodaySteps, memo, placeLabel, photos, sessionWeather, resetSessionInputs]);
 
   const handleDiscard = useCallback(() => {
     Alert.alert('今回の散歩を破棄しますか？', 'この操作は元に戻せません', [
