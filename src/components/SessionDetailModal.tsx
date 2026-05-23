@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import {
-  Image,
   Modal,
   ScrollView,
   StyleSheet,
@@ -10,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import SessionMap from './SessionMap';
+import { PhotoCarousel } from './PhotoCarousel';
 import { getPhotosByIds } from '../storage/photos';
 import { colors } from '../theme/colors';
 import type { WalkPhoto } from '../types/photo';
@@ -120,19 +120,8 @@ function SessionCard({
         label="カロリー"
         value={`${calories.toFixed(1)} kcal`}
       />
-      {photos.length > 0 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.photoScroll}
-          contentContainerStyle={styles.photoRow}
-        >
-          {photos.map((p) => (
-            <Image key={p.id} source={{ uri: p.uri }} style={styles.photoThumb} />
-          ))}
-        </ScrollView>
-      )}
       <SessionMap photoIds={session.photoIds} memo={session.memo} />
+      <PhotoCarousel photos={photos} />
       {session.placeLabel && (
         <View style={styles.placeRow}>
           <View style={styles.placeChip}>
@@ -246,18 +235,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
     borderRadius: 10,
     padding: 12,
-  },
-  photoScroll: {
-    marginTop: 12,
-  },
-  photoRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  photoThumb: {
-    width: 80,
-    height: 80,
-    borderRadius: 10,
-    backgroundColor: colors.borderSoft,
   },
 });
