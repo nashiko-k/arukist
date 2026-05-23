@@ -44,15 +44,19 @@ export const SpotDetailSheet = ({
   const daysToNext = info.nextThreshold
     ? Math.max(0, info.nextThreshold - visitDays)
     : 0;
+
+  // L1 だけ 0 始まり、それ以外は閾値始まり
+  const progressStart = cluster.level === 1 ? 0 : info.threshold;
   const progress = info.nextThreshold
     ? Math.min(
         1,
         Math.max(
           0,
-          (visitDays - info.threshold) / (info.nextThreshold - info.threshold),
+          (visitDays - progressStart) / (info.nextThreshold - progressStart),
         ),
       )
     : 1;
+
   const firstVisit = new Date(cluster.photos[0].takenAt);
   const firstVisitText = `${firstVisit.getFullYear()}年${
     firstVisit.getMonth() + 1
@@ -78,23 +82,29 @@ export const SpotDetailSheet = ({
           <View style={styles.handle} />
 
           <View style={styles.header}>
-            <Text style={styles.title}>
-              {hasName ? name : `Lv ${cluster.level} · ${info.name}`}
-            </Text>
+            <View style={styles.titleArea}>
+              {!hasName && (
+                <Text style={styles.smallLabel}>お散歩スポットレベル</Text>
+              )}
+              <Text style={styles.title}>
+                {hasName ? name : `Lv ${cluster.level} · ${info.name}`}
+              </Text>
+              {hasName && (
+                <Text style={styles.subline}>
+                  Lv {cluster.level} · {info.name}
+                  {isMaxed ? ` · 写真を撮った日数 ${visitDays}日` : ''}
+                </Text>
+              )}
+            </View>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
               <Ionicons name="close" size={24} color={colors.textMuted} />
             </TouchableOpacity>
           </View>
 
-          {hasName && (
-            <Text style={styles.subline}>
-              Lv {cluster.level} · {info.name}
-              {isMaxed ? ` · 訪問日数 ${visitDays}日` : ''}
-            </Text>
-          )}
-
           {(!isMaxed || !hasName) && (
-            <Text style={styles.days}>訪問日数: {visitDays} 日</Text>
+            <Text style={styles.days}>
+              ここで写真を撮った日数: {visitDays} 日
+            </Text>
           )}
 
           {isMaxed ? (
@@ -102,7 +112,8 @@ export const SpotDetailSheet = ({
           ) : (
             <>
               <Text style={styles.nextHint}>
-                あと {daysToNext} 日通うと{info.nextName}に
+                あと {daysToNext} 日、ここで写真を撮ると「Lv{' '}
+                {cluster.level + 1} · {info.nextName}」に
               </Text>
               <View style={styles.progressBar}>
                 <View
@@ -151,14 +162,21 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 4,
+  },
+  titleArea: {
+    flex: 1,
+  },
+  smallLabel: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginBottom: 2,
   },
   title: {
     fontSize: 22,
     fontWeight: '700',
     color: colors.text,
-    flex: 1,
   },
   closeBtn: {
     padding: 4,
@@ -166,12 +184,12 @@ const styles = StyleSheet.create({
   subline: {
     fontSize: 14,
     color: colors.textMuted,
-    marginBottom: 12,
+    marginTop: 4,
   },
   days: {
     fontSize: 16,
     color: colors.text,
-    marginTop: 8,
+    marginTop: 12,
     marginBottom: 12,
   },
   nextHint: {
@@ -194,7 +212,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: colors.sageDark,
     fontWeight: '600',
-    marginTop: 4,
+    marginTop: 12,
     marginBottom: 16,
   },
   firstVisit: {

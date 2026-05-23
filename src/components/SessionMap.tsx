@@ -86,6 +86,10 @@ export default function SessionMap({ photoIds, memo }: Props) {
         ref={mapRef}
         style={styles.map}
         onMapReady={onMapReady}
+        scrollEnabled={false}
+        zoomEnabled={false}
+        rotateEnabled={false}
+        pitchEnabled={false}
         initialRegion={{
           latitude: geoPhotos[0].latitude,
           longitude: geoPhotos[0].longitude,

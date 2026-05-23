@@ -1,5 +1,12 @@
 import { useCallback, useRef, useState } from 'react';
-import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import type { GestureResponderEvent } from 'react-native';
+import {
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { useFocusEffect } from '@react-navigation/native';
 import { SpotMarker } from '../components/SpotMarker';
@@ -8,10 +15,18 @@ import { SpotNameModal } from '../components/SpotNameModal';
 import { getAllPhotos } from '../storage/photos';
 import { getSpotNames, setSpotName } from '../storage/spotNames';
 import { colors } from '../theme/colors';
-import type { SpotCluster } from '../types/spot';
+import type { SpotCluster, SpotLevel } from '../types/spot';
 import { clusterPhotos } from '../utils/clustering';
 
 const MIN_DELTA = 0.005;
+
+const VISIT_DAYS_BY_LEVEL: Record<SpotLevel, number> = {
+  1: 2,
+  2: 6,
+  3: 20,
+  4: 45,
+  5: 60,
+};
 
 export default function MySpotScreen() {
   const [clusters, setClusters] = useState<SpotCluster[]>([]);
@@ -21,6 +36,8 @@ export default function MySpotScreen() {
     null,
   );
   const [showNameModal, setShowNameModal] = useState(false);
+  const [scrollEnabled, setScrollEnabled] = useState(false);
+  const [debugLevel, setDebugLevel] = useState<SpotLevel | null>(null);
   const mapRef = useRef<MapView | null>(null);
 
   useFocusEffect(
@@ -35,8 +52,20 @@ export default function MySpotScreen() {
     }, []),
   );
 
+  const applyDebugLevel = (cluster: SpotCluster): SpotCluster => {
+    if (debugLevel === null) return cluster;
+    return {
+      ...cluster,
+      level: debugLevel,
+      visitDays: VISIT_DAYS_BY_LEVEL[debugLevel],
+    };
+  };
+
   const selectedCluster =
     clusters.find((c) => c.id === selectedClusterId) ?? null;
+  const displayCluster = selectedCluster
+    ? applyDebugLevel(selectedCluster)
+    : null;
   const selectedName = selectedClusterId
     ? (spotNames[selectedClusterId] ?? null)
     : null;
@@ -65,6 +94,10 @@ export default function MySpotScreen() {
       },
       0,
     );
+  };
+
+  const handleTouches = (e: GestureResponderEvent) => {
+    setScrollEnabled(e.nativeEvent.touches.length >= 2);
   };
 
   const handleMarkerPress = (cluster: SpotCluster) => {
@@ -104,11 +137,19 @@ export default function MySpotScreen() {
           </Text>
         </View>
       ) : clusters.length > 0 ? (
-        <View style={styles.mapContainer}>
+        <View
+          style={styles.mapContainer}
+          onTouchStart={handleTouches}
+          onTouchMove={handleTouches}
+          onTouchEnd={handleTouches}
+          onTouchCancel={handleTouches}
+        >
           <MapView
             ref={mapRef}
             style={styles.map}
             onMapReady={fitToSpots}
+            scrollEnabled={scrollEnabled}
+            zoomEnabled={true}
             initialRegion={{
               latitude: clusters[0].anchorPhoto.latitude!,
               longitude: clusters[0].anchorPhoto.longitude!,
@@ -116,27 +157,30 @@ export default function MySpotScreen() {
               longitudeDelta: 0.01,
             }}
           >
-            {clusters.map((cluster) => (
-              <Marker
-                key={cluster.id}
-                coordinate={{
-                  latitude: cluster.anchorPhoto.latitude!,
-                  longitude: cluster.anchorPhoto.longitude!,
-                }}
-                anchor={{ x: 0.5, y: 1.0 }}
-                tracksViewChanges={false}
-                onPress={() => handleMarkerPress(cluster)}
-              >
-                <SpotMarker level={cluster.level} />
-              </Marker>
-            ))}
+            {clusters.map((cluster) => {
+              const displayed = applyDebugLevel(cluster);
+              return (
+                <Marker
+                  key={cluster.id}
+                  coordinate={{
+                    latitude: cluster.anchorPhoto.latitude!,
+                    longitude: cluster.anchorPhoto.longitude!,
+                  }}
+                  anchor={{ x: 0.5, y: 1.0 }}
+                  tracksViewChanges={false}
+                  onPress={() => handleMarkerPress(cluster)}
+                >
+                  <SpotMarker level={displayed.level} />
+                </Marker>
+              );
+            })}
           </MapView>
         </View>
       ) : null}
 
       <SpotDetailSheet
-        visible={!!selectedCluster && !showNameModal}
-        cluster={selectedCluster}
+        visible={!!displayCluster && !showNameModal}
+        cluster={displayCluster}
         name={selectedName}
         onClose={handleCloseSheet}
         onRename={handleRename}
@@ -148,6 +192,21 @@ export default function MySpotScreen() {
         onCancel={() => setShowNameModal(false)}
         onSave={handleSaveName}
       />
+
+      <TouchableOpacity
+        style={styles.debugBtn}
+        onPress={() => {
+          setDebugLevel((prev) => {
+            if (prev === null) return 1;
+            if (prev === 5) return null;
+            return (prev + 1) as SpotLevel;
+          });
+        }}
+      >
+        <Text style={styles.debugBtnText}>
+          {debugLevel ? `Lv ${debugLevel}` : 'auto'}
+        </Text>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -193,4 +252,18 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   map: { flex: 1 },
+  debugBtn: {
+    position: 'absolute',
+    bottom: 24,
+    right: 20,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+  },
+  debugBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
 });
