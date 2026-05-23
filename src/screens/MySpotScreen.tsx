@@ -1,8 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
+import { useFocusEffect } from '@react-navigation/native';
 import { SpotMarker } from '../components/SpotMarker';
+import { SpotDetailSheet } from '../components/SpotDetailSheet';
+import { SpotNameModal } from '../components/SpotNameModal';
 import { getAllPhotos } from '../storage/photos';
+import { getSpotNames, setSpotName } from '../storage/spotNames';
 import { colors } from '../theme/colors';
 import type { SpotCluster } from '../types/spot';
 import { clusterPhotos } from '../utils/clustering';
@@ -11,16 +15,31 @@ const MIN_DELTA = 0.005;
 
 export default function MySpotScreen() {
   const [clusters, setClusters] = useState<SpotCluster[]>([]);
+  const [spotNames, setSpotNamesState] = useState<Record<string, string>>({});
   const [loaded, setLoaded] = useState(false);
+  const [selectedClusterId, setSelectedClusterId] = useState<string | null>(
+    null,
+  );
+  const [showNameModal, setShowNameModal] = useState(false);
   const mapRef = useRef<MapView | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      const map = await getAllPhotos();
-      setClusters(clusterPhotos(Object.values(map)));
-      setLoaded(true);
-    })();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        const map = await getAllPhotos();
+        const names = await getSpotNames();
+        setClusters(clusterPhotos(Object.values(map)));
+        setSpotNamesState(names);
+        setLoaded(true);
+      })();
+    }, []),
+  );
+
+  const selectedCluster =
+    clusters.find((c) => c.id === selectedClusterId) ?? null;
+  const selectedName = selectedClusterId
+    ? (spotNames[selectedClusterId] ?? null)
+    : null;
 
   const fitToSpots = () => {
     if (clusters.length === 0) return;
@@ -46,6 +65,26 @@ export default function MySpotScreen() {
       },
       0,
     );
+  };
+
+  const handleMarkerPress = (cluster: SpotCluster) => {
+    setSelectedClusterId(cluster.id);
+  };
+
+  const handleRename = () => {
+    setShowNameModal(true);
+  };
+
+  const handleSaveName = async (name: string) => {
+    if (selectedClusterId) {
+      await setSpotName(selectedClusterId, name);
+      setSpotNamesState((prev) => ({ ...prev, [selectedClusterId]: name }));
+    }
+    setShowNameModal(false);
+  };
+
+  const handleCloseSheet = () => {
+    setSelectedClusterId(null);
   };
 
   return (
@@ -86,6 +125,7 @@ export default function MySpotScreen() {
                 }}
                 anchor={{ x: 0.5, y: 1.0 }}
                 tracksViewChanges={false}
+                onPress={() => handleMarkerPress(cluster)}
               >
                 <SpotMarker level={cluster.level} />
               </Marker>
@@ -93,6 +133,21 @@ export default function MySpotScreen() {
           </MapView>
         </View>
       ) : null}
+
+      <SpotDetailSheet
+        visible={!!selectedCluster && !showNameModal}
+        cluster={selectedCluster}
+        name={selectedName}
+        onClose={handleCloseSheet}
+        onRename={handleRename}
+      />
+
+      <SpotNameModal
+        visible={showNameModal}
+        initialValue={selectedName ?? ''}
+        onCancel={() => setShowNameModal(false)}
+        onSave={handleSaveName}
+      />
     </SafeAreaView>
   );
 }
