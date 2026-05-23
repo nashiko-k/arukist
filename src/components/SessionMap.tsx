@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import MapView, { Callout, Marker } from 'react-native-maps';
+import { SpotMarker } from './SpotMarker';
 import { getPhotosByIds } from '../storage/photos';
 import { colors } from '../theme/colors';
 import type { WalkPhoto } from '../types/photo';
@@ -101,8 +102,10 @@ export default function SessionMap({ photoIds, memo }: Props) {
           <Marker
             key={p.id}
             coordinate={{ latitude: p.latitude, longitude: p.longitude }}
+            anchor={{ x: 0.5, y: 1.0 }}
             tracksViewChanges={false}
           >
+            <SpotMarker level={1} />
             <Callout>
               <View style={styles.callout}>
                 <Image source={{ uri: p.uri }} style={styles.calloutImage} />

@@ -1,5 +1,4 @@
 import { useCallback, useRef, useState } from 'react';
-import type { GestureResponderEvent } from 'react-native';
 import {
   SafeAreaView,
   StyleSheet,
@@ -36,7 +35,6 @@ export default function MySpotScreen() {
     null,
   );
   const [showNameModal, setShowNameModal] = useState(false);
-  const [scrollEnabled, setScrollEnabled] = useState(false);
   const [debugLevel, setDebugLevel] = useState<SpotLevel | null>(null);
   const mapRef = useRef<MapView | null>(null);
 
@@ -96,10 +94,6 @@ export default function MySpotScreen() {
     );
   };
 
-  const handleTouches = (e: GestureResponderEvent) => {
-    setScrollEnabled(e.nativeEvent.touches.length >= 2);
-  };
-
   const handleMarkerPress = (cluster: SpotCluster) => {
     setSelectedClusterId(cluster.id);
   };
@@ -137,19 +131,15 @@ export default function MySpotScreen() {
           </Text>
         </View>
       ) : clusters.length > 0 ? (
-        <View
-          style={styles.mapContainer}
-          onTouchStart={handleTouches}
-          onTouchMove={handleTouches}
-          onTouchEnd={handleTouches}
-          onTouchCancel={handleTouches}
-        >
+        <View style={styles.mapContainer}>
           <MapView
             ref={mapRef}
             style={styles.map}
             onMapReady={fitToSpots}
-            scrollEnabled={scrollEnabled}
+            scrollEnabled={false}
             zoomEnabled={true}
+            pitchEnabled={false}
+            rotateEnabled={false}
             initialRegion={{
               latitude: clusters[0].anchorPhoto.latitude!,
               longitude: clusters[0].anchorPhoto.longitude!,
