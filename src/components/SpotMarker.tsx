@@ -42,41 +42,63 @@ function renderTree(level: SpotLevel) {
   }
 }
 
-// L1: 芽 — 葉っぱ1枚と短い茎
+// L1: 双葉 — 茎の上に左右に開いた2枚の葉(🌱)
 function SeedTree() {
   return (
-    <View style={{ alignItems: 'center' }}>
+    <View style={{ width: 26, height: 22 }}>
+      {/* 茎 */}
       <View
         style={{
-          width: 7,
-          height: 10,
+          position: 'absolute',
+          bottom: 0,
+          left: 12,
+          width: 2,
+          height: 12,
           backgroundColor: SAGE_LIGHT,
-          borderRadius: 4,
-          marginBottom: 1,
         }}
       />
+      {/* 左の双葉 */}
       <View
         style={{
-          width: 1.5,
-          height: 4,
+          position: 'absolute',
+          left: 0,
+          top: 2,
+          width: 14,
+          height: 9,
+          borderRadius: 6,
           backgroundColor: SAGE_LIGHT,
+          transform: [{ rotate: '-35deg' }],
+        }}
+      />
+      {/* 右の双葉 */}
+      <View
+        style={{
+          position: 'absolute',
+          right: 0,
+          top: 2,
+          width: 14,
+          height: 9,
+          borderRadius: 6,
+          backgroundColor: SAGE_LIGHT,
+          transform: [{ rotate: '35deg' }],
         }}
       />
     </View>
   );
 }
 
-// L2: 若葉 — 茎 + 葉5枚（上1+上下左右2ペア）
+// L2: 若葉 — 茎 + 葉5枚
 function SproutTree() {
   return (
-    <View style={{ alignItems: 'center', width: 24, height: 28 }}>
-      {/* 茎（中央背面） */}
+    <View style={{ width: 32, height: 34 }}>
+      {/* 茎 */}
       <View
         style={{
           position: 'absolute',
           bottom: 0,
-          width: 1.5,
-          height: 22,
+          left: 15,
+          width: 2,
+          height: 28,
           backgroundColor: SAGE,
         }}
       />
@@ -85,9 +107,10 @@ function SproutTree() {
         style={{
           position: 'absolute',
           top: 0,
-          width: 7,
-          height: 10,
-          borderRadius: 5,
+          left: 12,
+          width: 8,
+          height: 13,
+          borderRadius: 6,
           backgroundColor: SAGE,
         }}
       />
@@ -95,127 +118,62 @@ function SproutTree() {
       <View
         style={{
           position: 'absolute',
-          left: 3,
-          top: 6,
-          width: 8,
-          height: 6,
-          borderRadius: 3,
+          left: 2,
+          top: 9,
+          width: 11,
+          height: 8,
+          borderRadius: 5,
           backgroundColor: SAGE,
-          transform: [{ rotate: '-25deg' }],
+          transform: [{ rotate: '-30deg' }],
         }}
       />
       {/* 上ペア（右） */}
       <View
         style={{
           position: 'absolute',
-          right: 3,
-          top: 6,
-          width: 8,
-          height: 6,
-          borderRadius: 3,
+          right: 2,
+          top: 9,
+          width: 11,
+          height: 8,
+          borderRadius: 5,
           backgroundColor: SAGE,
-          transform: [{ rotate: '25deg' }],
+          transform: [{ rotate: '30deg' }],
         }}
       />
       {/* 下ペア（左） */}
       <View
         style={{
           position: 'absolute',
-          left: 1,
-          top: 13,
-          width: 9,
-          height: 6,
-          borderRadius: 3,
+          left: 0,
+          top: 18,
+          width: 12,
+          height: 8,
+          borderRadius: 5,
           backgroundColor: SAGE,
-          transform: [{ rotate: '-40deg' }],
+          transform: [{ rotate: '-45deg' }],
         }}
       />
       {/* 下ペア（右） */}
       <View
         style={{
           position: 'absolute',
-          right: 1,
-          top: 13,
-          width: 9,
-          height: 6,
-          borderRadius: 3,
+          right: 0,
+          top: 18,
+          width: 12,
+          height: 8,
+          borderRadius: 5,
           backgroundColor: SAGE,
-          transform: [{ rotate: '40deg' }],
+          transform: [{ rotate: '45deg' }],
         }}
       />
     </View>
   );
 }
 
-// L3: 若木 — 茶色の幹 + 雲型樹冠（円4つ）
+// L3: 若木 — 茶色の幹 + 雲型樹冠
 function SmallTree() {
   return (
     <View style={{ alignItems: 'center' }}>
-      {/* 樹冠 */}
-      <View style={{ width: 24, height: 18, position: 'relative' }}>
-        <View
-          style={{
-            position: 'absolute',
-            left: 0,
-            top: 4,
-            width: 13,
-            height: 13,
-            borderRadius: 6.5,
-            backgroundColor: SAGE,
-          }}
-        />
-        <View
-          style={{
-            position: 'absolute',
-            left: 5,
-            top: 0,
-            width: 13,
-            height: 13,
-            borderRadius: 6.5,
-            backgroundColor: SAGE,
-          }}
-        />
-        <View
-          style={{
-            position: 'absolute',
-            left: 11,
-            top: 4,
-            width: 13,
-            height: 13,
-            borderRadius: 6.5,
-            backgroundColor: SAGE,
-          }}
-        />
-        <View
-          style={{
-            position: 'absolute',
-            left: 6,
-            top: 7,
-            width: 12,
-            height: 11,
-            borderRadius: 6,
-            backgroundColor: SAGE,
-          }}
-        />
-      </View>
-      {/* 幹 */}
-      <View
-        style={{
-          width: 4,
-          height: 9,
-          backgroundColor: TRUNK,
-          marginTop: -1,
-        }}
-      />
-    </View>
-  );
-}
-
-// L4: 大木 — より大きな幹 + 樹冠
-function LargeTree() {
-  return (
-    <View style={{ alignItems: 'center' }}>
-      {/* 樹冠 */}
       <View style={{ width: 32, height: 24, position: 'relative' }}>
         <View
           style={{
@@ -254,19 +212,80 @@ function LargeTree() {
           style={{
             position: 'absolute',
             left: 8,
-            top: 8,
+            top: 9,
             width: 16,
-            height: 15,
-            borderRadius: 8,
+            height: 14,
+            borderRadius: 7,
             backgroundColor: SAGE,
           }}
         />
       </View>
-      {/* 幹 */}
       <View
         style={{
           width: 5,
           height: 12,
+          backgroundColor: TRUNK,
+          marginTop: -2,
+        }}
+      />
+    </View>
+  );
+}
+
+// L4: 大木
+function LargeTree() {
+  return (
+    <View style={{ alignItems: 'center' }}>
+      <View style={{ width: 40, height: 30, position: 'relative' }}>
+        <View
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 8,
+            width: 21,
+            height: 21,
+            borderRadius: 10.5,
+            backgroundColor: SAGE,
+          }}
+        />
+        <View
+          style={{
+            position: 'absolute',
+            left: 10,
+            top: 0,
+            width: 21,
+            height: 21,
+            borderRadius: 10.5,
+            backgroundColor: SAGE,
+          }}
+        />
+        <View
+          style={{
+            position: 'absolute',
+            left: 19,
+            top: 8,
+            width: 21,
+            height: 21,
+            borderRadius: 10.5,
+            backgroundColor: SAGE,
+          }}
+        />
+        <View
+          style={{
+            position: 'absolute',
+            left: 11,
+            top: 11,
+            width: 18,
+            height: 18,
+            borderRadius: 9,
+            backgroundColor: SAGE,
+          }}
+        />
+      </View>
+      <View
+        style={{
+          width: 6,
+          height: 15,
           backgroundColor: TRUNK,
           marginTop: -2,
         }}
@@ -279,50 +298,48 @@ function LargeTree() {
 function BloomTree() {
   return (
     <View style={{ alignItems: 'center', position: 'relative' }}>
-      {/* 樹冠 */}
-      <View style={{ width: 32, height: 24, position: 'relative' }}>
-        {/* sage の雲 */}
+      <View style={{ width: 40, height: 30, position: 'relative' }}>
         <View
           style={{
             position: 'absolute',
             left: 0,
-            top: 6,
-            width: 17,
-            height: 17,
-            borderRadius: 8.5,
-            backgroundColor: SAGE,
-          }}
-        />
-        <View
-          style={{
-            position: 'absolute',
-            left: 7,
-            top: 0,
-            width: 17,
-            height: 17,
-            borderRadius: 8.5,
-            backgroundColor: SAGE,
-          }}
-        />
-        <View
-          style={{
-            position: 'absolute',
-            left: 15,
-            top: 6,
-            width: 17,
-            height: 17,
-            borderRadius: 8.5,
-            backgroundColor: SAGE,
-          }}
-        />
-        <View
-          style={{
-            position: 'absolute',
-            left: 8,
             top: 8,
-            width: 16,
-            height: 15,
-            borderRadius: 8,
+            width: 21,
+            height: 21,
+            borderRadius: 10.5,
+            backgroundColor: SAGE,
+          }}
+        />
+        <View
+          style={{
+            position: 'absolute',
+            left: 10,
+            top: 0,
+            width: 21,
+            height: 21,
+            borderRadius: 10.5,
+            backgroundColor: SAGE,
+          }}
+        />
+        <View
+          style={{
+            position: 'absolute',
+            left: 19,
+            top: 8,
+            width: 21,
+            height: 21,
+            borderRadius: 10.5,
+            backgroundColor: SAGE,
+          }}
+        />
+        <View
+          style={{
+            position: 'absolute',
+            left: 11,
+            top: 11,
+            width: 18,
+            height: 18,
+            borderRadius: 9,
             backgroundColor: SAGE,
           }}
         />
@@ -330,66 +347,65 @@ function BloomTree() {
         <View
           style={{
             position: 'absolute',
-            left: 5,
-            top: 9,
-            width: 5,
-            height: 5,
-            borderRadius: 2.5,
+            left: 6,
+            top: 12,
+            width: 6,
+            height: 6,
+            borderRadius: 3,
             backgroundColor: PEACH,
           }}
         />
         <View
           style={{
             position: 'absolute',
-            left: 13,
-            top: 3,
-            width: 5,
-            height: 5,
-            borderRadius: 2.5,
+            left: 17,
+            top: 4,
+            width: 6,
+            height: 6,
+            borderRadius: 3,
             backgroundColor: PINK,
           }}
         />
         <View
           style={{
             position: 'absolute',
-            left: 21,
-            top: 10,
-            width: 5,
-            height: 5,
-            borderRadius: 2.5,
+            left: 27,
+            top: 13,
+            width: 6,
+            height: 6,
+            borderRadius: 3,
             backgroundColor: PEACH,
           }}
         />
         <View
           style={{
             position: 'absolute',
-            left: 14,
-            top: 14,
-            width: 5,
-            height: 5,
-            borderRadius: 2.5,
+            left: 18,
+            top: 18,
+            width: 6,
+            height: 6,
+            borderRadius: 3,
             backgroundColor: PINK,
           }}
         />
       </View>
-      {/* 幹 */}
       <View
         style={{
-          width: 5,
-          height: 12,
+          width: 6,
+          height: 15,
           backgroundColor: TRUNK,
           marginTop: -2,
         }}
       />
-      {/* スパークル（右上に小さい点） */}
+      {/* スパークル */}
       <View
         style={{
           position: 'absolute',
-          right: 0,
+          right: 2,
           top: 2,
-          width: 3,
-          height: 3,
-          borderRadius: 1.5,
+          width: 4,
+          height: 4,
+          borderRadius: 2,
           backgroundColor: SPARKLE,
         }}
       />
