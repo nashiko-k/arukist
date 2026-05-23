@@ -1,89 +1,141 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import MapView, { Marker } from 'react-native-maps';
+import { SpotMarker } from '../components/SpotMarker';
 import { getAllPhotos } from '../storage/photos';
 import { colors } from '../theme/colors';
-import type { SpotCluster, SpotLevel } from '../types/spot';
+import type { SpotCluster } from '../types/spot';
 import { clusterPhotos } from '../utils/clustering';
 
+const MIN_DELTA = 0.005;
+
 export default function MySpotScreen() {
-  const [totalPhotos, setTotalPhotos] = useState(0);
-  const [gpsPhotos, setGpsPhotos] = useState(0);
   const [clusters, setClusters] = useState<SpotCluster[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const mapRef = useRef<MapView | null>(null);
 
   useEffect(() => {
     (async () => {
       const map = await getAllPhotos();
-      const photos = Object.values(map);
-      setTotalPhotos(photos.length);
-      const withGps = photos.filter(
-        (p) => p.latitude != null && p.longitude != null,
-      );
-      setGpsPhotos(withGps.length);
-      setClusters(clusterPhotos(photos));
+      setClusters(clusterPhotos(Object.values(map)));
+      setLoaded(true);
     })();
   }, []);
 
-  const countByLevel = (lv: SpotLevel) =>
-    clusters.filter((c) => c.level === lv).length;
+  const fitToSpots = () => {
+    if (clusters.length === 0) return;
+
+    const lats = clusters.map((c) => c.anchorPhoto.latitude!);
+    const lngs = clusters.map((c) => c.anchorPhoto.longitude!);
+    const minLat = Math.min(...lats);
+    const maxLat = Math.max(...lats);
+    const minLng = Math.min(...lngs);
+    const maxLng = Math.max(...lngs);
+
+    const centerLat = (minLat + maxLat) / 2;
+    const centerLng = (minLng + maxLng) / 2;
+    const latDelta = Math.max((maxLat - minLat) * 1.5, MIN_DELTA);
+    const lngDelta = Math.max((maxLng - minLng) * 1.5, MIN_DELTA);
+
+    mapRef.current?.animateToRegion(
+      {
+        latitude: centerLat,
+        longitude: centerLng,
+        latitudeDelta: latDelta,
+        longitudeDelta: lngDelta,
+      },
+      0,
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.container}>
+      <View style={styles.header}>
         <Text style={styles.title}>マイスポット</Text>
-        <Text style={styles.description}>
+        <Text style={styles.subtitle}>
           散歩で訪れた場所が、ここで木として育ちます
         </Text>
-
-        <View style={styles.debugBox}>
-          <Text style={styles.debugTitle}>デバッグ情報</Text>
-          <Text style={styles.debugText}>
-            合計写真: {totalPhotos} 枚（GPS あり: {gpsPhotos} 枚）
-          </Text>
-          <Text style={styles.debugText}>スポット数: {clusters.length}</Text>
-          <Text style={styles.debugText} />
-          {([1, 2, 3, 4, 5] as SpotLevel[]).map((lv) => (
-            <Text key={lv} style={styles.debugText}>
-              Lv{lv}: {countByLevel(lv)} 個
-            </Text>
-          ))}
-        </View>
       </View>
+
+      {loaded && clusters.length === 0 ? (
+        <View style={styles.empty}>
+          <Text style={styles.emptyTitle}>まだスポットがありません</Text>
+          <Text style={styles.emptyBody}>
+            散歩中に写真を撮ると、ここに木が育ち始めます🌱
+          </Text>
+        </View>
+      ) : clusters.length > 0 ? (
+        <View style={styles.mapContainer}>
+          <MapView
+            ref={mapRef}
+            style={styles.map}
+            onMapReady={fitToSpots}
+            initialRegion={{
+              latitude: clusters[0].anchorPhoto.latitude!,
+              longitude: clusters[0].anchorPhoto.longitude!,
+              latitudeDelta: 0.01,
+              longitudeDelta: 0.01,
+            }}
+          >
+            {clusters.map((cluster) => (
+              <Marker
+                key={cluster.id}
+                coordinate={{
+                  latitude: cluster.anchorPhoto.latitude!,
+                  longitude: cluster.anchorPhoto.longitude!,
+                }}
+                anchor={{ x: 0.5, y: 1.0 }}
+                tracksViewChanges={false}
+              >
+                <SpotMarker level={cluster.level} />
+              </Marker>
+            ))}
+          </MapView>
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  container: { flex: 1, padding: 24 },
+  header: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 12 },
   title: {
     fontSize: 28,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 8,
+    marginBottom: 4,
   },
-  description: {
+  subtitle: {
     fontSize: 15,
     color: colors.textMuted,
-    marginBottom: 32,
   },
-  debugBox: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
+  empty: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
   },
-  debugTitle: {
-    fontSize: 13,
+  emptyTitle: {
+    fontSize: 17,
     fontWeight: '600',
-    color: colors.textLight,
+    color: colors.textMuted,
     marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
   },
-  debugText: {
+  emptyBody: {
     fontSize: 14,
-    color: colors.text,
+    color: colors.textLight,
+    textAlign: 'center',
     lineHeight: 22,
   },
+  mapContainer: {
+    flex: 1,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    overflow: 'hidden',
+  },
+  map: { flex: 1 },
 });
