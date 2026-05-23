@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -134,7 +135,11 @@ export default function CalendarScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <View style={styles.container}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.contentInner}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Month header */}
         <View style={styles.monthHeader}>
           <TouchableOpacity onPress={goPrev} hitSlop={12} activeOpacity={0.6}>
@@ -234,7 +239,7 @@ export default function CalendarScreen() {
             <SummaryCard label="連続日数" value={`${summary.currentStreak}`} unit="日" />
           </View>
         </View>
-      </View>
+      </ScrollView>
 
       <SessionDetailModal
         visible={selectedDate !== null}
@@ -279,7 +284,10 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+  },
+  contentInner: {
     paddingHorizontal: 24,
+    paddingBottom: 24,
   },
 
   // Month header
