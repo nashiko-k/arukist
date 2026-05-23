@@ -105,7 +105,7 @@ function SessionCard({
   return (
     <View style={styles.sessionCard}>
       {total > 1 && (
-        <Text style={styles.sessionIndex}>{index + 1}回目</Text>
+        <Text style={styles.sessionIndex}>{total - index}回目</Text>
       )}
       <DetailRow
         label="時間"

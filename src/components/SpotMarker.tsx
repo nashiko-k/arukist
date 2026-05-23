@@ -4,7 +4,7 @@ import type { SpotLevel } from '../types/spot';
 export const SPOT_MARKER_SIZE = 50;
 
 const SAGE = '#7AA068';
-const SAGE_LIGHT = '#A6C094';
+const SAGE_LIGHT = '#8FAD7E';
 const TRUNK = '#8B6F47';
 const PEACH = '#F5B595';
 const PINK = '#EDB0B8';

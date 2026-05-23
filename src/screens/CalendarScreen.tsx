@@ -11,9 +11,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import SessionDetailModal from '../components/SessionDetailModal';
+import { PhotoCarousel } from '../components/PhotoCarousel';
 import { useHealth } from '../hooks/useHealth';
+import { getAllPhotos } from '../storage/photos';
 import { getAllSessions } from '../storage/sessions';
 import { colors } from '../theme/colors';
+import type { WalkPhoto } from '../types/photo';
 import type { WalkSession } from '../types/walk';
 import {
   formatYearMonth,
@@ -35,6 +38,7 @@ export default function CalendarScreen() {
   const { getStepsForRange } = useHealth();
 
   const [sessions, setSessions] = useState<WalkSession[]>([]);
+  const [allPhotos, setAllPhotos] = useState<WalkPhoto[]>([]);
   const [year, setYear] = useState(() => new Date().getFullYear());
   const [month, setMonth] = useState(() => new Date().getMonth());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -45,6 +49,9 @@ export default function CalendarScreen() {
   const loadSessions = useCallback(async () => {
     const all = await getAllSessions();
     setSessions(all);
+    const photoMap = await getAllPhotos();
+    const sorted = Object.values(photoMap).sort((a, b) => a.takenAt - b.takenAt);
+    setAllPhotos(sorted);
   }, []);
 
   useEffect(() => {
@@ -120,7 +127,9 @@ export default function CalendarScreen() {
   };
 
   const selectedSessions = selectedDate
-    ? sessionsByDay.get(toDateKey(selectedDate)) ?? []
+    ? [...(sessionsByDay.get(toDateKey(selectedDate)) ?? [])].sort(
+        (a, b) => b.startTime - a.startTime,
+      )
     : [];
 
   return (
@@ -196,6 +205,14 @@ export default function CalendarScreen() {
             );
           })}
         </View>
+
+        {/* All photos carousel */}
+        <PhotoCarousel
+          photos={allPhotos}
+          showDate
+          cardSize={140}
+          initialScrollToEnd
+        />
 
         {/* Month summary - 2x2 grid */}
         <View style={styles.summaryGrid}>
