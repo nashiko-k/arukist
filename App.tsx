@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import CalendarScreen from './src/screens/CalendarScreen';
 import HomeScreen from './src/screens/HomeScreen';
+import MySpotScreen from './src/screens/MySpotScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import { colors } from './src/theme/colors';
 
@@ -30,6 +31,8 @@ export default function App() {
                 iconName = focused ? 'home' : 'home-outline';
               } else if (route.name === 'Calendar') {
                 iconName = focused ? 'calendar' : 'calendar-outline';
+              } else if (route.name === 'MySpot') {
+                iconName = focused ? 'leaf' : 'leaf-outline';
               } else if (route.name === 'Settings') {
                 iconName = focused ? 'settings' : 'settings-outline';
               }
@@ -46,6 +49,11 @@ export default function App() {
             name="Calendar"
             component={CalendarScreen}
             options={{ title: 'カレンダー' }}
+          />
+          <Tab.Screen
+            name="MySpot"
+            component={MySpotScreen}
+            options={{ title: 'マイスポット' }}
           />
           <Tab.Screen
             name="Settings"
