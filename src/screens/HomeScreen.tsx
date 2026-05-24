@@ -36,8 +36,6 @@ import { captureFromCamera, captureFromLibrary } from '../utils/photoCapture';
 
 type Phase = 'idle' | 'walking' | 'finished';
 
-const HOLD_DURATION_MS = 1000;
-
 function formatDuration(ms: number): string {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
   const hours = Math.floor(totalSeconds / 3600);
@@ -436,83 +434,64 @@ type DuringWalkProps = {
 };
 
 function DuringWalkView({ elapsedMs, walkSteps, photoCount, onCapture, onEnd }: DuringWalkProps) {
-  const [holdProgress, setHoldProgress] = useState(0);
-  const holdStartRef = useRef<number | null>(null);
-  const holdIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const clearHold = useCallback(() => {
-    if (holdIntervalRef.current) {
-      clearInterval(holdIntervalRef.current);
-      holdIntervalRef.current = null;
-    }
-    holdStartRef.current = null;
-  }, []);
-
-  useEffect(() => {
-    return () => clearHold();
-  }, [clearHold]);
-
-  const handlePressIn = useCallback(() => {
-    holdStartRef.current = Date.now();
-    setHoldProgress(0);
-    holdIntervalRef.current = setInterval(() => {
-      const elapsed = Date.now() - (holdStartRef.current ?? Date.now());
-      const p = Math.min(1, elapsed / HOLD_DURATION_MS);
-      setHoldProgress(p);
-      if (p >= 1) {
-        clearHold();
-        setHoldProgress(0);
-        onEnd();
-      }
-    }, 50);
-  }, [clearHold, onEnd]);
-
-  const handlePressOut = useCallback(() => {
-    clearHold();
-    setHoldProgress(0);
-  }, [clearHold]);
+  const handleEndPress = useCallback(() => {
+    Alert.alert('散歩を終える', '散歩を終了しますか？', [
+      { text: 'キャンセル', style: 'cancel' },
+      { text: '終わる', style: 'destructive', onPress: () => onEnd() },
+    ]);
+  }, [onEnd]);
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.statusLabel}>散歩中</Text>
+    <View style={styles.duringContainer}>
+      {/* 散歩中インジケーター */}
+      <View style={styles.liveRow}>
+        <View style={styles.liveDot} />
+        <Text style={styles.liveLabel}>散歩中</Text>
+      </View>
 
-      <View style={styles.statRow}>
-        <View style={styles.statCard}>
-          <Text style={styles.statCardLabel}>経過時間</Text>
-          <Text style={styles.statCardValue}>{formatDuration(elapsedMs)}</Text>
+      {/* 時間・歩数（中央・大きく） */}
+      <View style={styles.metricsBlock}>
+        <View style={styles.metric}>
+          <Text style={styles.metricTimeValue}>{formatDuration(elapsedMs)}</Text>
+          <Text style={styles.metricCaption}>経過時間</Text>
         </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statCardLabel}>歩数</Text>
-          <Text style={styles.statCardValue}>{walkSteps.toLocaleString()}</Text>
-          <Text style={styles.statCardNote}>※少し遅れて反映されます</Text>
+        <View style={styles.metric}>
+          <Text style={styles.metricStepsValue}>{walkSteps.toLocaleString()}</Text>
+          <Text style={styles.metricUnit}>歩</Text>
+          <Text style={styles.metricNote}>※少し遅れて反映されます</Text>
         </View>
       </View>
 
-      <TouchableOpacity
-        style={styles.cameraButton}
-        onPress={onCapture}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="camera-outline" size={20} color={colors.text} />
-        <Text style={styles.cameraButtonText}>
-          写真を撮る{photoCount > 0 ? `（${photoCount}枚撮影済）` : ''}
-        </Text>
-      </TouchableOpacity>
-
-      <View style={styles.endButtonWrapper}>
+      {/* ボタン群（下部） */}
+      <View style={styles.actionBlock}>
         <TouchableOpacity
-          activeOpacity={1}
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
-          style={[styles.endButton, holdProgress > 0 && styles.endButtonPressed]}
+          style={styles.captureButton}
+          onPress={onCapture}
+          activeOpacity={0.85}
         >
-          <View style={[styles.endButtonProgress, { width: `${holdProgress * 100}%` }]} />
-          <View style={styles.endButtonContent}>
-            <Ionicons name="stop" size={18} color={colors.surface} style={styles.endIcon} />
-            <Text style={styles.endButtonText}>
-              {holdProgress > 0 ? '長押しで終了…' : '散歩を終わる（長押し）'}
-            </Text>
-          </View>
+          <Ionicons
+            name="camera-outline"
+            size={22}
+            color={colors.surface}
+            style={styles.captureIcon}
+          />
+          <Text style={styles.captureButtonText}>
+            写真を撮る{photoCount > 0 ? `（${photoCount}枚）` : ''}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.endTapButton}
+          onPress={handleEndPress}
+          activeOpacity={0.7}
+        >
+          <Ionicons
+            name="stop"
+            size={18}
+            color={colors.textMuted}
+            style={styles.endIcon}
+          />
+          <Text style={styles.endTapButtonText}>散歩を終える</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -683,13 +662,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-  },
-
   // PreWalk
   preScroll: {
     flex: 1,
@@ -786,99 +758,105 @@ const styles = StyleSheet.create({
   },
 
   // DuringWalk
-  statusLabel: {
-    position: 'absolute',
-    top: 24,
-    fontSize: 15,
-    color: colors.textMuted,
-    letterSpacing: 4,
-  },
-  statRow: {
-    flexDirection: 'row',
-    gap: 12,
-    width: '100%',
-    marginBottom: 24,
-  },
-  statCard: {
+  duringContainer: {
     flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    paddingVertical: 32,
-    paddingHorizontal: 16,
+    justifyContent: 'space-between',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
+    paddingHorizontal: 24,
+    paddingTop: 32,
+    paddingBottom: 32,
   },
-  statCardLabel: {
-    fontSize: 14,
-    color: colors.textMuted,
-    marginBottom: 10,
-    letterSpacing: 1,
+  liveRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
-  statCardValue: {
-    fontSize: 32,
+  liveDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.sage,
+  },
+  liveLabel: {
+    fontSize: 22,
+    fontWeight: '600',
+    color: colors.text,
+    letterSpacing: 2,
+  },
+  metricsBlock: {
+    alignItems: 'center',
+    gap: 36,
+  },
+  metric: {
+    alignItems: 'center',
+  },
+  metricTimeValue: {
+    fontSize: 60,
     fontWeight: '700',
     color: colors.text,
     fontVariant: ['tabular-nums'],
   },
-  statCardNote: {
-    fontSize: 10,
-    color: colors.textLight,
+  metricStepsValue: {
+    fontSize: 52,
+    fontWeight: '700',
+    color: colors.text,
+    fontVariant: ['tabular-nums'],
+  },
+  metricCaption: {
+    fontSize: 13,
+    color: colors.textMuted,
+    marginTop: 4,
+    letterSpacing: 1,
+  },
+  metricUnit: {
+    fontSize: 16,
+    color: colors.textMuted,
     marginTop: 4,
   },
-
-  // Camera button (during walk)
-  cameraButton: {
+  metricNote: {
+    fontSize: 10,
+    color: colors.textLight,
+    marginTop: 6,
+  },
+  actionBlock: {
+    width: '100%',
+    gap: 14,
+  },
+  captureButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 20,
+    backgroundColor: colors.primary,
+    borderRadius: 28,
+    paddingVertical: 18,
+    paddingHorizontal: 28,
+  },
+  captureIcon: {
+    marginRight: 8,
+  },
+  captureButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.surface,
+  },
+  endTapButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.bg,
+    borderRadius: 28,
     paddingVertical: 14,
     paddingHorizontal: 24,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: 24,
-  },
-  cameraButtonText: {
-    fontSize: 16,
-    color: colors.text,
-    marginLeft: 8,
-  },
-
-  endButtonWrapper: {
-    width: '100%',
-  },
-  endButton: {
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.coolDark,
-    overflow: 'hidden',
-    justifyContent: 'center',
-  },
-  endButtonPressed: {
-    backgroundColor: colors.coolDark,
-  },
-  endButtonProgress: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    backgroundColor: colors.primaryDark,
-  },
-  endButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   endIcon: {
     marginRight: 8,
   },
-  endButtonText: {
-    color: colors.surface,
-    fontSize: 17,
+  endTapButtonText: {
+    fontSize: 16,
     fontWeight: '600',
-    letterSpacing: 1,
+    color: colors.textMuted,
   },
 
   // PostWalk
