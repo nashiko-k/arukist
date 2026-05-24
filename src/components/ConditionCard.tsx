@@ -114,18 +114,18 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   cellValue: {
-    fontSize: 13,
+    fontSize: 15,
     color: colors.text,
     fontWeight: '500',
   },
   loadingText: {
-    fontSize: 13,
+    fontSize: 15,
     color: colors.textMuted,
     textAlign: 'center',
     marginTop: 4,
   },
   errorText: {
-    fontSize: 13,
+    fontSize: 15,
     color: colors.textMuted,
     textAlign: 'center',
   },

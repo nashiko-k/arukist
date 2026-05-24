@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.borderSoft,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
     color: colors.text,
   },
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
     borderColor: colors.borderSoft,
   },
   sessionIndex: {
-    fontSize: 12,
+    fontSize: 14,
     color: colors.textMuted,
     marginBottom: 12,
     letterSpacing: 1,
@@ -203,11 +203,11 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   detailLabel: {
-    fontSize: 14,
+    fontSize: 16,
     color: colors.textMuted,
   },
   detailValue: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: colors.text,
     fontVariant: ['tabular-nums'],
@@ -223,13 +223,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryLighter,
   },
   placeChipText: {
-    fontSize: 12,
+    fontSize: 14,
     color: colors.primaryDark,
     fontWeight: '600',
   },
   memo: {
     marginTop: 12,
-    fontSize: 14,
+    fontSize: 16,
     color: colors.text,
     lineHeight: 22,
     backgroundColor: colors.bg,

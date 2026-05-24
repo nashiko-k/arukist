@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { PhotoCarousel } from './PhotoCarousel';
 import { colors } from '../theme/colors';
 import type { SpotCluster, SpotLevel } from '../types/spot';
 
@@ -125,6 +126,9 @@ export const SpotDetailSheet = ({
 
           <Text style={styles.firstVisit}>初回訪問: {firstVisitText}</Text>
 
+          {/* このスポットで撮った写真 */}
+          <PhotoCarousel photos={cluster.photos} showDate cardSize={140} />
+
           {isNameable && (
             <TouchableOpacity style={styles.nameBtn} onPress={onRename}>
               <Text style={styles.nameBtnText}>
@@ -169,7 +173,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   smallLabel: {
-    fontSize: 12,
+    fontSize: 14,
     color: colors.textMuted,
     marginBottom: 2,
   },
@@ -182,18 +186,18 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   subline: {
-    fontSize: 14,
+    fontSize: 16,
     color: colors.textMuted,
     marginTop: 4,
   },
   days: {
-    fontSize: 16,
+    fontSize: 18,
     color: colors.text,
     marginTop: 12,
     marginBottom: 12,
   },
   nextHint: {
-    fontSize: 14,
+    fontSize: 16,
     color: colors.textMuted,
     marginBottom: 8,
   },
@@ -209,14 +213,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.sage,
   },
   maxedMsg: {
-    fontSize: 17,
+    fontSize: 19,
     color: colors.sageDark,
     fontWeight: '600',
     marginTop: 12,
     marginBottom: 16,
   },
   firstVisit: {
-    fontSize: 13,
+    fontSize: 15,
     color: colors.textMuted,
     marginTop: 4,
   },
@@ -228,7 +232,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   nameBtnText: {
-    fontSize: 15,
+    fontSize: 17,
     color: colors.text,
     fontWeight: '500',
   },

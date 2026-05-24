@@ -23,7 +23,7 @@ export const PhotoCarousel = ({
   cardSize = 220,
   initialScrollToEnd = false,
 }: Props) => {
-  const [viewerPhoto, setViewerPhoto] = useState<WalkPhoto | null>(null);
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -39,10 +39,13 @@ export const PhotoCarousel = ({
 
   const formatLabel = (photo: WalkPhoto) => {
     const d = new Date(photo.takenAt);
+    const now = new Date();
     const h = d.getHours().toString().padStart(2, '0');
     const m = d.getMinutes().toString().padStart(2, '0');
     if (showDate) {
-      return `${d.getMonth() + 1}/${d.getDate()} ${h}:${m}`;
+      const yearPart =
+        d.getFullYear() !== now.getFullYear() ? `${d.getFullYear()}/` : '';
+      return `${yearPart}${d.getMonth() + 1}/${d.getDate()} ${h}:${m}`;
     }
     return `${h}:${m}`;
   };
@@ -55,11 +58,11 @@ export const PhotoCarousel = ({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.container}
       >
-        {photos.map((photo) => (
+        {photos.map((photo, idx) => (
           <TouchableOpacity
             key={photo.id}
             style={{ width: cardSize }}
-            onPress={() => setViewerPhoto(photo)}
+            onPress={() => setViewerIndex(idx)}
             activeOpacity={0.85}
           >
             <Image
@@ -78,9 +81,10 @@ export const PhotoCarousel = ({
       </ScrollView>
 
       <PhotoViewer
-        visible={!!viewerPhoto}
-        photo={viewerPhoto}
-        onClose={() => setViewerPhoto(null)}
+        visible={viewerIndex !== null}
+        photos={photos}
+        initialIndex={viewerIndex ?? 0}
+        onClose={() => setViewerIndex(null)}
       />
     </>
   );
@@ -94,7 +98,7 @@ const styles = StyleSheet.create({
   },
   label: {
     marginTop: 6,
-    fontSize: 13,
+    fontSize: 15,
     color: colors.textMuted,
   },
 });

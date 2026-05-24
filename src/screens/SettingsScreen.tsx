@@ -32,7 +32,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 16,
     color: colors.textMuted,
   },
 });

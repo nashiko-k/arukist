@@ -148,12 +148,12 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   calloutTime: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
     color: colors.text,
   },
   calloutMemo: {
-    fontSize: 12,
+    fontSize: 14,
     color: colors.textMuted,
     marginTop: 2,
     textAlign: 'center',

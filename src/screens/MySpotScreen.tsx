@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: 17,
     color: colors.textMuted,
   },
   empty: {
@@ -221,13 +221,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   emptyTitle: {
-    fontSize: 17,
+    fontSize: 19,
     fontWeight: '600',
     color: colors.textMuted,
     marginBottom: 8,
   },
   emptyBody: {
-    fontSize: 14,
+    fontSize: 16,
     color: colors.textLight,
     textAlign: 'center',
     lineHeight: 22,
@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
   },
   debugBtnText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
   },
 });

@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Dimensions,
   ScrollView,
   StyleSheet,
@@ -13,7 +12,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import SessionDetailModal from '../components/SessionDetailModal';
 import { PhotoCarousel } from '../components/PhotoCarousel';
-import { useHealth } from '../hooks/useHealth';
 import { getAllPhotos } from '../storage/photos';
 import { getAllSessions } from '../storage/sessions';
 import { colors } from '../theme/colors';
@@ -36,15 +34,12 @@ const CELL_SIZE = Math.floor((SCREEN_WIDTH - 48) / 7);
 
 export default function CalendarScreen() {
   const navigation = useNavigation();
-  const { getStepsForRange } = useHealth();
 
   const [sessions, setSessions] = useState<WalkSession[]>([]);
   const [allPhotos, setAllPhotos] = useState<WalkPhoto[]>([]);
   const [year, setYear] = useState(() => new Date().getFullYear());
   const [month, setMonth] = useState(() => new Date().getMonth());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [monthTotalSteps, setMonthTotalSteps] = useState<number | null>(null);
-  const [monthStepsLoading, setMonthStepsLoading] = useState(false);
   const [sessionStepsTotal, setSessionStepsTotal] = useState<number>(0);
 
   const loadSessions = useCallback(async () => {
@@ -66,29 +61,6 @@ export default function CalendarScreen() {
     return unsub;
   }, [navigation, loadSessions]);
 
-  // 月間歩数（HealthKit 全体）
-  useEffect(() => {
-    let cancelled = false;
-    setMonthStepsLoading(true);
-    setMonthTotalSteps(null);
-    const start = new Date(year, month, 1);
-    const end = new Date(year, month + 1, 0, 23, 59, 59);
-    (async () => {
-      try {
-        const daily = await getStepsForRange(start, end);
-        if (!cancelled) {
-          const total = daily.reduce((sum, d) => sum + d.value, 0);
-          setMonthTotalSteps(total);
-        }
-      } catch {
-        if (!cancelled) setMonthTotalSteps(null);
-      } finally {
-        if (!cancelled) setMonthStepsLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [year, month, getStepsForRange]);
-
   // 散歩歩数（session.steps の単純合算）
   useEffect(() => {
     const monthStart = new Date(year, month, 1).getTime();
@@ -101,6 +73,10 @@ export default function CalendarScreen() {
   const grid = getMonthGrid(year, month);
   const summary = computeMonthSummary(sessions, year, month);
   const today = new Date();
+  const todayKey = toDateKey(today);
+  const todaySteps = sessions
+    .filter((s) => toDateKey(new Date(s.startTime)) === todayKey)
+    .reduce((sum, s) => sum + s.steps, 0);
 
   const goPrev = () => {
     if (month === 0) {
@@ -211,6 +187,24 @@ export default function CalendarScreen() {
           })}
         </View>
 
+        {/* Month summary - 3 stats in one row */}
+        <View style={styles.statsRow}>
+          <View style={styles.statCell}>
+            <Text style={styles.statLabel}>今日の歩数</Text>
+            <Text style={styles.statValue}>{todaySteps.toLocaleString()}</Text>
+          </View>
+          <View style={styles.statCell}>
+            <Text style={styles.statLabel}>連続日数</Text>
+            <Text style={styles.statValue}>{summary.currentStreak}</Text>
+          </View>
+          <View style={styles.statCell}>
+            <Text style={styles.statLabel}>月間歩数</Text>
+            <Text style={styles.statValue}>
+              {sessionStepsTotal.toLocaleString()}
+            </Text>
+          </View>
+        </View>
+
         {/* All photos carousel */}
         <PhotoCarousel
           photos={allPhotos}
@@ -218,27 +212,6 @@ export default function CalendarScreen() {
           cardSize={140}
           initialScrollToEnd
         />
-
-        {/* Month summary - 2x2 grid */}
-        <View style={styles.summaryGrid}>
-          <View style={styles.summaryGridRow}>
-            <SummaryCard label="散歩日数" value={`${summary.walkDays}`} unit="日" />
-            <SummaryCard
-              label="散歩歩数"
-              value={sessionStepsTotal.toLocaleString()}
-              unit="歩"
-            />
-          </View>
-          <View style={styles.summaryGridRow}>
-            <SummaryCard
-              label="月間歩数"
-              value={monthTotalSteps != null ? monthTotalSteps.toLocaleString() : '—'}
-              unit={monthTotalSteps != null ? '歩' : ''}
-              loading={monthStepsLoading}
-            />
-            <SummaryCard label="連続日数" value={`${summary.currentStreak}`} unit="日" />
-          </View>
-        </View>
       </ScrollView>
 
       <SessionDetailModal
@@ -248,32 +221,6 @@ export default function CalendarScreen() {
         onClose={() => setSelectedDate(null)}
       />
     </SafeAreaView>
-  );
-}
-
-function SummaryCard({
-  label,
-  value,
-  unit,
-  loading,
-}: {
-  label: string;
-  value: string;
-  unit: string;
-  loading?: boolean;
-}) {
-  return (
-    <View style={styles.summaryCard}>
-      <Text style={styles.summaryLabel}>{label}</Text>
-      {loading ? (
-        <ActivityIndicator size="small" color={colors.textMuted} style={styles.summaryLoader} />
-      ) : (
-        <Text style={styles.summaryValue}>
-          {value}
-          <Text style={styles.summaryUnit}> {unit}</Text>
-        </Text>
-      )}
-    </View>
   );
 }
 
@@ -298,7 +245,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   monthTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
     color: colors.text,
     letterSpacing: 1,
@@ -315,7 +262,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   weekdayText: {
-    fontSize: 12,
+    fontSize: 14,
     color: colors.textMuted,
     fontWeight: '500',
   },
@@ -352,7 +299,7 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   dayText: {
-    fontSize: 14,
+    fontSize: 16,
     color: colors.text,
   },
   dayTextOther: {
@@ -380,43 +327,25 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  // Summary - 2x2 grid
-  summaryGrid: {
-    marginTop: 16,
-    gap: 8,
-  },
-  summaryGridRow: {
+  // Summary - 3 stats in one row
+  statsRow: {
     flexDirection: 'row',
-    gap: 8,
+    paddingVertical: 16,
+    gap: 12,
   },
-  summaryCard: {
+  statCell: {
     flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
   },
-  summaryLabel: {
-    fontSize: 10,
+  statLabel: {
+    fontSize: 15,
     color: colors.textMuted,
     marginBottom: 4,
-    letterSpacing: 1,
   },
-  summaryValue: {
-    fontSize: 18,
+  statValue: {
+    fontSize: 20,
     fontWeight: '700',
     color: colors.text,
     fontVariant: ['tabular-nums'],
-  },
-  summaryUnit: {
-    fontSize: 10,
-    fontWeight: '500',
-    color: colors.textMuted,
-  },
-  summaryLoader: {
-    height: 22,
   },
 });

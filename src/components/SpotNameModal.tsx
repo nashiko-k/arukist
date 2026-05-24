@@ -91,13 +91,13 @@ const styles = StyleSheet.create({
     maxWidth: 360,
   },
   title: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     color: colors.text,
     marginBottom: 4,
   },
   subtitle: {
-    fontSize: 13,
+    fontSize: 15,
     color: colors.textMuted,
     marginBottom: 20,
   },
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: 16,
+    fontSize: 18,
     color: colors.text,
     marginBottom: 20,
     backgroundColor: colors.bg,
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   btnCancelText: {
-    fontSize: 15,
+    fontSize: 17,
     color: colors.text,
     fontWeight: '500',
   },
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   btnSaveText: {
-    fontSize: 15,
+    fontSize: 17,
     color: '#FFFFFF',
     fontWeight: '600',
   },

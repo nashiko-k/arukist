@@ -683,7 +683,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   greetingComment: {
-    fontSize: 14,
+    fontSize: 16,
     color: colors.textMuted,
     textAlign: 'center',
     lineHeight: 22,
@@ -701,7 +701,7 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   stepsLabel: {
-    fontSize: 12,
+    fontSize: 14,
     color: colors.textMuted,
     marginBottom: 8,
   },
@@ -711,12 +711,12 @@ const styles = StyleSheet.create({
     color: colors.primaryDark,
   },
   stepsUnit: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '500',
     color: colors.textMuted,
   },
   errorText: {
-    fontSize: 14,
+    fontSize: 16,
     color: colors.textMuted,
     textAlign: 'center',
   },
@@ -745,7 +745,7 @@ const styles = StyleSheet.create({
   },
   startButtonText: {
     color: colors.surface,
-    fontSize: 17,
+    fontSize: 19,
     fontWeight: '600',
     letterSpacing: 1,
   },
@@ -754,7 +754,7 @@ const styles = StyleSheet.create({
   statusLabel: {
     position: 'absolute',
     top: 24,
-    fontSize: 13,
+    fontSize: 15,
     color: colors.textMuted,
     letterSpacing: 4,
   },
@@ -775,7 +775,7 @@ const styles = StyleSheet.create({
     borderColor: colors.borderSoft,
   },
   statCardLabel: {
-    fontSize: 12,
+    fontSize: 14,
     color: colors.textMuted,
     marginBottom: 10,
     letterSpacing: 1,
@@ -806,7 +806,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   cameraButtonText: {
-    fontSize: 14,
+    fontSize: 16,
     color: colors.text,
     marginLeft: 8,
   },
@@ -841,7 +841,7 @@ const styles = StyleSheet.create({
   },
   endButtonText: {
     color: colors.surface,
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '600',
     letterSpacing: 1,
   },
@@ -868,7 +868,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   celebrationSub: {
-    fontSize: 13,
+    fontSize: 15,
     color: colors.textMuted,
     marginTop: 4,
   },
@@ -889,11 +889,11 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   summaryLabel: {
-    fontSize: 14,
+    fontSize: 16,
     color: colors.textMuted,
   },
   summaryValue: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
     color: colors.text,
     fontVariant: ['tabular-nums'],
@@ -920,7 +920,7 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     color: colors.surface,
-    fontSize: 17,
+    fontSize: 19,
     fontWeight: '600',
     letterSpacing: 1,
   },
@@ -928,12 +928,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   discardText: {
-    fontSize: 13,
+    fontSize: 15,
     color: colors.textLight,
     textDecorationLine: 'underline',
   },
   stepsHint: {
-    fontSize: 11,
+    fontSize: 13,
     color: colors.textLight,
     textAlign: 'center',
     marginBottom: 24,
@@ -945,7 +945,7 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   sectionTitle: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
     color: colors.text,
     marginBottom: 12,
@@ -969,7 +969,7 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   chipText: {
-    fontSize: 13,
+    fontSize: 15,
     color: colors.text,
   },
   chipTextSelected: {
@@ -984,7 +984,7 @@ const styles = StyleSheet.create({
     borderColor: colors.borderSoft,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: 15,
+    fontSize: 17,
     color: colors.text,
     lineHeight: 22,
   },
