@@ -23,7 +23,7 @@
         "CFBundleLocalizations": ["ja", "en"],
         "CFBundleDevelopmentRegion": "ja_JP",
         "NSMotionUsageDescription": "散歩中の歩数をリアルタイムで計測するために使用します",
-        "NSLocationWhenInUseUsageDescription": "散歩前のお天気や気温を表示するためにおおよその位置を使います"
+        "NSLocationWhenInUseUsageDescription": "散歩中のお天気の表示、写真の撮影場所の記録、散歩経路の把握のために使用します"
       }
     },
     "android": {
@@ -48,7 +48,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "散歩前のお天気や気温を表示するためにおおよその位置を使います"
+          "locationWhenInUsePermission": "散歩中のお天気の表示、写真の撮影場所の記録、散歩経路の把握のために使用します"
         }
       ],
       [
