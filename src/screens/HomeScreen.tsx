@@ -21,6 +21,7 @@ import { useCondition } from '../hooks/useCondition';
 import { useHealth } from '../hooks/useHealth';
 import { deletePhoto } from '../storage/photos';
 import { saveSession } from '../storage/sessions';
+import { getItem, setItem } from '../storage/storage';
 import { colors } from '../theme/colors';
 import { buildGreeting } from '../utils/greeting';
 import type { Weather } from '../utils/weather';
@@ -86,6 +87,20 @@ export default function HomeScreen() {
   const [now, setNow] = useState(Date.now());
 
   const [showStartConfirm, setShowStartConfirm] = useState(false);
+  const [showGreeting, setShowGreeting] = useState(false);
+
+  // あいさつは「当日初回」だけ表示する
+  useEffect(() => {
+    (async () => {
+      const d = new Date();
+      const today = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+      const lastShown = await getItem<string>('last_greeting_date');
+      if (lastShown !== today) {
+        setShowGreeting(true);
+        await setItem('last_greeting_date', today);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -132,6 +147,9 @@ export default function HomeScreen() {
   }, [phase]);
 
   const handleStart = useCallback(async () => {
+    // 散歩から戻ったときに勝手に再表示されないよう、あいさつを閉じる
+    setShowGreeting(false);
+
     // fallback 用に HealthKit baseline を一応取得（通常は使わない）
     let baseline = 0;
     try {
@@ -292,6 +310,7 @@ export default function HomeScreen() {
           weather={condition.weather}
           weatherLoading={condition.loading}
           weatherError={condition.error}
+          showGreeting={showGreeting}
           onStart={() => setShowStartConfirm(true)}
         />
       )}
@@ -344,6 +363,7 @@ type PreWalkProps = {
   weather: Weather | null;
   weatherLoading: boolean;
   weatherError: string | null;
+  showGreeting: boolean;
   onStart: () => void;
 };
 
@@ -355,6 +375,7 @@ function PreWalkView({
   weather,
   weatherLoading,
   weatherError,
+  showGreeting,
   onStart,
 }: PreWalkProps) {
   const { headline, comment } = buildGreeting(new Date(), weather);
@@ -367,10 +388,12 @@ function PreWalkView({
     >
       <Text style={styles.titleSmall}>アルキスト</Text>
 
-      <View style={styles.greetingBlock}>
-        <Text style={styles.greetingHeadline}>{headline}</Text>
-        <Text style={styles.greetingComment}>{comment}</Text>
-      </View>
+      {showGreeting && (
+        <View style={styles.greetingBlock}>
+          <Text style={styles.greetingHeadline}>{headline}</Text>
+          <Text style={styles.greetingComment}>{comment}</Text>
+        </View>
+      )}
 
       <ConditionCard weather={weather} loading={weatherLoading} error={weatherError} />
 
