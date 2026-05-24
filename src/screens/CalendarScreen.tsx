@@ -187,6 +187,8 @@ export default function CalendarScreen() {
           })}
         </View>
 
+        <View style={styles.divider} />
+
         {/* Month summary - 3 stats in one row */}
         <View style={styles.statsRow}>
           <View style={styles.statCell}>
@@ -204,6 +206,8 @@ export default function CalendarScreen() {
             </Text>
           </View>
         </View>
+
+        <View style={styles.divider} />
 
         {/* All photos carousel */}
         <PhotoCarousel
@@ -235,6 +239,12 @@ const styles = StyleSheet.create({
   contentInner: {
     paddingHorizontal: 24,
     paddingBottom: 24,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: 16,
+    opacity: 0.6,
   },
 
   // Month header

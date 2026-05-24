@@ -61,9 +61,10 @@ export function clusterPhotos(photos: WalkPhoto[]): SpotCluster[] {
 
   for (const cluster of clusters) {
     const days = new Set(
-      cluster.photos.map((p) =>
-        new Date(p.takenAt).toISOString().slice(0, 10),
-      ),
+      cluster.photos.map((p) => {
+        const d = new Date(p.takenAt);
+        return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      }),
     );
     cluster.visitDays = days.size;
     cluster.level = getSpotLevel(days.size);
