@@ -11,9 +11,9 @@
       "**/*"
     ],
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FAF6EE"
+      "backgroundColor": "#F5B595"
     },
     "ios": {
       "bundleIdentifier": "com.nashiko.arukist",
