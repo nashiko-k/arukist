@@ -15,6 +15,7 @@ type Props = {
   showDate?: boolean;
   cardSize?: number;
   initialScrollToEnd?: boolean;
+  onDeletePhoto?: (photoId: string) => Promise<void>;
 };
 
 export const PhotoCarousel = ({
@@ -22,6 +23,7 @@ export const PhotoCarousel = ({
   showDate = false,
   cardSize = 220,
   initialScrollToEnd = false,
+  onDeletePhoto,
 }: Props) => {
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const scrollRef = useRef<ScrollView>(null);
@@ -85,6 +87,7 @@ export const PhotoCarousel = ({
         photos={photos}
         initialIndex={viewerIndex ?? 0}
         onClose={() => setViewerIndex(null)}
+        onDelete={onDeletePhoto}
       />
     </>
   );

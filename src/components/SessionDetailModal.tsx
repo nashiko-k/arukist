@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import {
+  Alert,
   Modal,
   ScrollView,
   StyleSheet,
@@ -22,6 +23,8 @@ type Props = {
   date: Date | null;
   sessions: WalkSession[];
   onClose: () => void;
+  onDeleteSession?: (sessionId: string) => Promise<void>;
+  onDeletePhoto?: (photoId: string) => Promise<void>;
 };
 
 function formatTime(ts: number): string {
@@ -39,7 +42,14 @@ function formatDuration(ms: number): string {
   return `${minutes}分`;
 }
 
-export default function SessionDetailModal({ visible, date, sessions, onClose }: Props) {
+export default function SessionDetailModal({
+  visible,
+  date,
+  sessions,
+  onClose,
+  onDeleteSession,
+  onDeletePhoto,
+}: Props) {
   const [photoMap, setPhotoMap] = useState<Record<string, WalkPhoto[]>>({});
 
   useEffect(() => {
@@ -79,6 +89,8 @@ export default function SessionDetailModal({ visible, date, sessions, onClose }:
                 index={i}
                 total={sessions.length}
                 photos={photoMap[s.id] ?? []}
+                onDeleteSession={onDeleteSession}
+                onDeletePhoto={onDeletePhoto}
               />
             ))}
           </ScrollView>
@@ -93,20 +105,54 @@ function SessionCard({
   index,
   total,
   photos,
+  onDeleteSession,
+  onDeletePhoto,
 }: {
   session: WalkSession;
   index: number;
   total: number;
   photos: WalkPhoto[];
+  onDeleteSession?: (sessionId: string) => Promise<void>;
+  onDeletePhoto?: (photoId: string) => Promise<void>;
 }) {
   const steps = session.steps;
   const calories = steps * 0.04;
 
+  const handleDeleteSessionPress = (sessionId: string) => {
+    Alert.alert(
+      '散歩記録を削除',
+      'この散歩の記録と写真を削除します。よろしいですか？',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '削除',
+          style: 'destructive',
+          onPress: async () => {
+            await onDeleteSession?.(sessionId);
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <View style={styles.sessionCard}>
-      {total > 1 && (
-        <Text style={styles.sessionIndex}>{total - index}回目</Text>
-      )}
+      <View style={styles.cardHeader}>
+        {total > 1 ? (
+          <Text style={styles.sessionIndex}>{total - index}回目</Text>
+        ) : (
+          <View />
+        )}
+        {onDeleteSession && (
+          <TouchableOpacity
+            onPress={() => handleDeleteSessionPress(session.id)}
+            hitSlop={10}
+            activeOpacity={0.6}
+          >
+            <Ionicons name="trash-outline" size={20} color={colors.textMuted} />
+          </TouchableOpacity>
+        )}
+      </View>
       <DetailRow
         label="時間"
         value={`${formatTime(session.startTime)} 〜 ${formatTime(session.endTime)}`}
@@ -121,7 +167,7 @@ function SessionCard({
         value={`${calories.toFixed(1)} kcal`}
       />
       <SessionMap photoIds={session.photoIds} memo={session.memo} />
-      <PhotoCarousel photos={photos} />
+      <PhotoCarousel photos={photos} onDeletePhoto={onDeletePhoto} />
       {session.placeLabel && (
         <View style={styles.placeRow}>
           <View style={styles.placeChip}>
@@ -190,10 +236,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderSoft,
   },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    minHeight: 24,
+    marginBottom: 8,
+  },
   sessionIndex: {
     fontSize: 14,
     color: colors.textMuted,
-    marginBottom: 12,
     letterSpacing: 1,
   },
   detailRow: {

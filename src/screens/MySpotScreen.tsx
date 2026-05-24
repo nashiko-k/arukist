@@ -11,7 +11,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { SpotMarker } from '../components/SpotMarker';
 import { SpotDetailSheet } from '../components/SpotDetailSheet';
 import { SpotNameModal } from '../components/SpotNameModal';
-import { getAllPhotos } from '../storage/photos';
+import { deletePhoto, getAllPhotos } from '../storage/photos';
 import { getSpotNames, setSpotName } from '../storage/spotNames';
 import { colors } from '../theme/colors';
 import type { SpotCluster, SpotLevel } from '../types/spot';
@@ -38,17 +38,24 @@ export default function MySpotScreen() {
   const [debugLevel, setDebugLevel] = useState<SpotLevel | null>(null);
   const mapRef = useRef<MapView | null>(null);
 
+  const loadData = useCallback(async () => {
+    const map = await getAllPhotos();
+    const names = await getSpotNames();
+    setClusters(clusterPhotos(Object.values(map)));
+    setSpotNamesState(names);
+    setLoaded(true);
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
-      (async () => {
-        const map = await getAllPhotos();
-        const names = await getSpotNames();
-        setClusters(clusterPhotos(Object.values(map)));
-        setSpotNamesState(names);
-        setLoaded(true);
-      })();
-    }, []),
+      loadData();
+    }, [loadData]),
   );
+
+  const handleDeletePhoto = async (photoId: string) => {
+    await deletePhoto(photoId);
+    await loadData();
+  };
 
   const applyDebugLevel = (cluster: SpotCluster): SpotCluster => {
     if (debugLevel === null) return cluster;
@@ -174,6 +181,7 @@ export default function MySpotScreen() {
         name={selectedName}
         onClose={handleCloseSheet}
         onRename={handleRename}
+        onDeletePhoto={handleDeletePhoto}
       />
 
       <SpotNameModal

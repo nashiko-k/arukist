@@ -26,6 +26,7 @@ type Props = {
   name: string | null;
   onClose: () => void;
   onRename: () => void;
+  onDeletePhoto?: (photoId: string) => Promise<void>;
 };
 
 export const SpotDetailSheet = ({
@@ -34,6 +35,7 @@ export const SpotDetailSheet = ({
   name,
   onClose,
   onRename,
+  onDeletePhoto,
 }: Props) => {
   if (!cluster) return null;
 
@@ -127,7 +129,12 @@ export const SpotDetailSheet = ({
           <Text style={styles.firstVisit}>初回訪問: {firstVisitText}</Text>
 
           {/* このスポットで撮った写真 */}
-          <PhotoCarousel photos={cluster.photos} showDate cardSize={140} />
+          <PhotoCarousel
+            photos={cluster.photos}
+            showDate
+            cardSize={140}
+            onDeletePhoto={onDeletePhoto}
+          />
 
           {isNameable && (
             <TouchableOpacity style={styles.nameBtn} onPress={onRename}>

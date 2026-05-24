@@ -1,5 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useState } from 'react';
 import {
+  Alert,
   Dimensions,
   FlatList,
   Image,
@@ -16,6 +18,7 @@ type Props = {
   photos: WalkPhoto[];
   initialIndex: number;
   onClose: () => void;
+  onDelete?: (photoId: string) => Promise<void>;
 };
 
 export const PhotoViewer = ({
@@ -23,9 +26,33 @@ export const PhotoViewer = ({
   photos,
   initialIndex,
   onClose,
+  onDelete,
 }: Props) => {
-  if (photos.length === 0) return null;
   const { width, height } = Dimensions.get('window');
+  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+
+  // ビューアを開くたびに表示位置を初期インデックスへ同期
+  useEffect(() => {
+    setCurrentIndex(initialIndex);
+  }, [initialIndex, visible]);
+
+  if (photos.length === 0) return null;
+
+  const handleDeletePress = () => {
+    const photo = photos[currentIndex];
+    if (!photo || !onDelete) return;
+    Alert.alert('写真を削除', 'この写真を削除しますか？', [
+      { text: 'キャンセル', style: 'cancel' },
+      {
+        text: '削除',
+        style: 'destructive',
+        onPress: async () => {
+          await onDelete(photo.id);
+          onClose();
+        },
+      },
+    ]);
+  };
 
   return (
     <Modal
@@ -41,6 +68,10 @@ export const PhotoViewer = ({
           pagingEnabled
           showsHorizontalScrollIndicator={false}
           initialScrollIndex={initialIndex}
+          onMomentumScrollEnd={(e) => {
+            const idx = Math.round(e.nativeEvent.contentOffset.x / width);
+            setCurrentIndex(idx);
+          }}
           getItemLayout={(_, i) => ({
             length: width,
             offset: width * i,
@@ -67,6 +98,11 @@ export const PhotoViewer = ({
         <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
           <Ionicons name="close" size={28} color="#FFFFFF" />
         </TouchableOpacity>
+        {onDelete && (
+          <TouchableOpacity style={styles.deleteBtn} onPress={handleDeletePress}>
+            <Ionicons name="trash-outline" size={26} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
       </View>
     </Modal>
   );
@@ -77,6 +113,14 @@ const styles = StyleSheet.create({
   closeBtn: {
     position: 'absolute',
     top: 50,
+    right: 20,
+    padding: 8,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    borderRadius: 22,
+  },
+  deleteBtn: {
+    position: 'absolute',
+    bottom: 50,
     right: 20,
     padding: 8,
     backgroundColor: 'rgba(0,0,0,0.4)',

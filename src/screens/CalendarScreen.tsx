@@ -12,8 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import SessionDetailModal from '../components/SessionDetailModal';
 import { PhotoCarousel } from '../components/PhotoCarousel';
-import { getAllPhotos } from '../storage/photos';
-import { getAllSessions } from '../storage/sessions';
+import { deletePhoto, getAllPhotos } from '../storage/photos';
+import { deleteSession, getAllSessions } from '../storage/sessions';
 import { colors } from '../theme/colors';
 import type { WalkPhoto } from '../types/photo';
 import type { WalkSession } from '../types/walk';
@@ -108,6 +108,22 @@ export default function CalendarScreen() {
         (a, b) => b.startTime - a.startTime,
       )
     : [];
+
+  const handleDeletePhoto = async (photoId: string) => {
+    await deletePhoto(photoId);
+    await loadSessions();
+  };
+
+  const handleDeleteSession = async (sessionId: string) => {
+    // 削除後に同日のセッションが残るか先に判定（state 更新前の値で計算）
+    const remaining = selectedSessions.filter((s) => s.id !== sessionId);
+    await deleteSession(sessionId);
+    await loadSessions();
+    // その日の最後のセッションを消したらモーダルを閉じる
+    if (remaining.length === 0) {
+      setSelectedDate(null);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -215,6 +231,7 @@ export default function CalendarScreen() {
           showDate
           cardSize={140}
           initialScrollToEnd
+          onDeletePhoto={handleDeletePhoto}
         />
       </ScrollView>
 
@@ -223,6 +240,8 @@ export default function CalendarScreen() {
         date={selectedDate}
         sessions={selectedSessions}
         onClose={() => setSelectedDate(null)}
+        onDeleteSession={handleDeleteSession}
+        onDeletePhoto={handleDeletePhoto}
       />
     </SafeAreaView>
   );
