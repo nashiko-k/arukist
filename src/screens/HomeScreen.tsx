@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Pedometer } from 'expo-sensors';
 import ConditionCard from '../components/ConditionCard';
 import SessionMap from '../components/SessionMap';
+import { WalkStartModal } from '../components/WalkStartModal';
 import { useCondition } from '../hooks/useCondition';
 import { useHealth } from '../hooks/useHealth';
 import { deletePhoto } from '../storage/photos';
@@ -83,6 +84,8 @@ export default function HomeScreen() {
   const [photos, setPhotos] = useState<WalkPhoto[]>([]);
 
   const [now, setNow] = useState(Date.now());
+
+  const [showStartConfirm, setShowStartConfirm] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -289,7 +292,7 @@ export default function HomeScreen() {
           weather={condition.weather}
           weatherLoading={condition.loading}
           weatherError={condition.error}
-          onStart={handleStart}
+          onStart={() => setShowStartConfirm(true)}
         />
       )}
       {phase === 'walking' && (
@@ -317,6 +320,15 @@ export default function HomeScreen() {
           onDiscard={handleDiscard}
         />
       )}
+
+      <WalkStartModal
+        visible={showStartConfirm}
+        onStart={() => {
+          setShowStartConfirm(false);
+          handleStart();
+        }}
+        onCancel={() => setShowStartConfirm(false)}
+      />
     </SafeAreaView>
   );
 }
