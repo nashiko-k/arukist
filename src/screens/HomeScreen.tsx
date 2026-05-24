@@ -680,21 +680,22 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   greetingBlock: {
-    alignItems: 'center',
+    width: '100%',
+    alignItems: 'stretch',
     marginBottom: 24,
   },
   greetingHeadline: {
     fontSize: 26,
     fontWeight: '700',
     color: colors.text,
+    textAlign: 'left',
     marginBottom: 8,
   },
   greetingComment: {
     fontSize: 16,
     color: colors.textMuted,
-    textAlign: 'center',
+    textAlign: 'left',
     lineHeight: 22,
-    paddingHorizontal: 12,
   },
   stepsRow: {
     backgroundColor: colors.surface,
