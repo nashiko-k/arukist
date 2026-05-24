@@ -19,6 +19,20 @@ const HEADLINES: Record<TimeOfDay, string> = {
 
 function weatherComment(weather: Weather): string {
   const t = weather.temperature;
+  const uv = Math.round(weather.uvIndex);
+  const tempRounded = Math.round(weather.temperature);
+
+  // UV・気温が高いときは注意喚起を優先
+  if (uv >= 5 && tempRounded >= 30) {
+    return '日焼けと熱中症に気をつけて、こまめに水分補給を';
+  }
+  if (tempRounded >= 30) {
+    return '熱中症に気をつけて、こまめに水分補給を';
+  }
+  if (uv >= 5) {
+    return '日焼けに気をつけましょう';
+  }
+
   switch (weather.category) {
     case 'sunny':
       if (t >= 26) return '日差しが強めです。水分補給を忘れずに';

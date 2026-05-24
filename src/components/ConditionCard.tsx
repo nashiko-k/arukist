@@ -33,6 +33,8 @@ const CATEGORY_COLOR: Record<WeatherCategory, string> = {
   stormy: '#7A6FB0',
 };
 
+const DANGER_COLOR = '#D9534F';
+
 function uvLabel(uv: number): string {
   if (uv < 3) return '弱';
   if (uv < 6) return '中';
@@ -72,11 +74,23 @@ export default function ConditionCard({ weather, loading, error }: Props) {
         </View>
         <View style={styles.cell}>
           <Ionicons name="thermometer-outline" size={20} color={colors.textMuted} />
-          <Text style={styles.cellValue}>{Math.round(weather.temperature)}°C</Text>
+          <Text
+            style={[
+              styles.cellValue,
+              Math.round(weather.temperature) >= 35 && { color: DANGER_COLOR },
+            ]}
+          >
+            {Math.round(weather.temperature)}°C
+          </Text>
         </View>
         <View style={styles.cell}>
           <Ionicons name="sunny-outline" size={20} color={colors.textMuted} />
-          <Text style={styles.cellValue}>
+          <Text
+            style={[
+              styles.cellValue,
+              Math.round(weather.uvIndex) >= 5 && { color: DANGER_COLOR },
+            ]}
+          >
             UV {Math.round(weather.uvIndex)}（{uvLabel(weather.uvIndex)}）
           </Text>
         </View>
