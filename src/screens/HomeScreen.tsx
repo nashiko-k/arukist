@@ -388,12 +388,12 @@ function PreWalkView({
     >
       <Text style={styles.titleSmall}>アルキスト</Text>
 
-      {showGreeting && (
-        <View style={styles.greetingBlock}>
+      <View style={styles.greetingBlock}>
+        {showGreeting && (
           <Text style={styles.greetingHeadline}>{headline}</Text>
-          <Text style={styles.greetingComment}>{comment}</Text>
-        </View>
-      )}
+        )}
+        <Text style={styles.greetingComment}>{comment}</Text>
+      </View>
 
       <ConditionCard weather={weather} loading={weatherLoading} error={weatherError} />
 
