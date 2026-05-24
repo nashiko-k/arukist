@@ -26,11 +26,15 @@ export default function SettingsScreen() {
   };
 
   const handleTerms = () => {
-    Alert.alert('利用規約', '準備中です');
+    Linking.openURL('https://nashiko-k.github.io/arukist/terms.html').catch(() => {
+      Alert.alert('エラー', '利用規約ページを開けませんでした');
+    });
   };
 
   const handlePrivacy = () => {
-    Alert.alert('プライバシーポリシー', '準備中です');
+    Linking.openURL('https://nashiko-k.github.io/arukist/privacy-policy.html').catch(() => {
+      Alert.alert('エラー', 'プライバシーポリシーページを開けませんでした');
+    });
   };
 
   const handleResetData = () => {
