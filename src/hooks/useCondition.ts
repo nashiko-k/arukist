@@ -9,7 +9,10 @@ export type Condition = {
   error: string | null;
 };
 
-export function useCondition(): Condition & { refresh: () => Promise<void> } {
+export function useCondition(): Condition & {
+  refresh: () => Promise<void>;
+  refreshIfStale: (maxAgeMs?: number) => void;
+} {
   const [location, setLocation] = useState<CoarseLocation | null>(null);
   const [weather, setWeather] = useState<Weather | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,9 +39,19 @@ export function useCondition(): Condition & { refresh: () => Promise<void> } {
     }
   }, []);
 
+  // 天気が未取得、または fetchedAt が maxAgeMs より古ければ再取得する
+  const refreshIfStale = useCallback(
+    (maxAgeMs: number = 60 * 60 * 1000) => {
+      if (!weather || Date.now() - weather.fetchedAt >= maxAgeMs) {
+        refresh();
+      }
+    },
+    [weather, refresh],
+  );
+
   useEffect(() => {
     refresh();
   }, [refresh]);
 
-  return { location, weather, loading, error, refresh };
+  return { location, weather, loading, error, refresh, refreshIfStale };
 }

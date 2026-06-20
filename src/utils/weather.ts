@@ -8,6 +8,7 @@ export type Weather = {
   temperature: number;
   uvIndex: number;
   rainProbability: number;
+  fetchedAt: number; // 取得時刻（epoch ms）。鮮度判定に使用
 };
 
 function codeToCategory(code: number): WeatherCategory {
@@ -42,6 +43,7 @@ export async function fetchWeather(loc: CoarseLocation): Promise<Weather | null>
       temperature: current.temperature_2m ?? 0,
       uvIndex: current.uv_index ?? 0,
       rainProbability: daily?.precipitation_probability_max?.[0] ?? 0,
+      fetchedAt: Date.now(),
     };
   } catch {
     return null;

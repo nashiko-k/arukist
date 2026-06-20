@@ -4,6 +4,7 @@ import {
   ActionSheetIOS,
   ActivityIndicator,
   Alert,
+  AppState,
   Image,
   ScrollView,
   StyleSheet,
@@ -35,6 +36,12 @@ import type { WalkSession } from '../types/walk';
 import { captureFromCamera, captureFromLibrary } from '../utils/photoCapture';
 
 type Phase = 'idle' | 'walking' | 'finished';
+
+// 散歩の最大継続時間。開始からこれを超えたら自動的に終了する。
+// ※テスト時は一時的に短く（例: 30 * 1000）して動作確認できる。本番は 6 時間。
+const MAX_WALK_DURATION_MS = 6 * 60 * 60 * 1000; // 6時間
+// 天気データをこれ以上古いとみなしたら、アプリ復帰時に再取得する。
+const WEATHER_MAX_AGE_MS = 60 * 60 * 1000; // 1時間
 
 function formatDuration(ms: number): string {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
@@ -206,6 +213,29 @@ export default function HomeScreen() {
       setConfirmedSteps(walkSteps);
     }
   }, [walkStartedAt, walkSteps]);
+
+  // 自動終了の監視：now（1秒タイマーで更新）が変わるたびに 6 時間到達をチェック。
+  // アプリを開いたまま放置したケースをここで検知する。
+  useEffect(() => {
+    if (phase !== 'walking') return;
+    if (now - startTime >= MAX_WALK_DURATION_MS) {
+      handleEnd();
+    }
+  }, [now, phase, startTime, handleEnd]);
+
+  // アプリがバックグラウンドから復帰したときの処理。
+  // (a) 散歩中なら 6 時間到達を再チェック（放置中はタイマーが止まるため）
+  // (b) 天気が古ければ再取得
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') return;
+      if (phase === 'walking' && Date.now() - startTime >= MAX_WALK_DURATION_MS) {
+        handleEnd();
+      }
+      condition.refreshIfStale(WEATHER_MAX_AGE_MS);
+    });
+    return () => sub.remove();
+  }, [phase, startTime, handleEnd, condition.refreshIfStale]);
 
   const handleCapture = useCallback(async () => {
     try {
