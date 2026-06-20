@@ -29,6 +29,19 @@ export async function saveSession(session: WalkSession): Promise<void> {
   await setItem(SESSIONS_KEY, sessions);
 }
 
+// 既存セッションを id で探して上書き更新する。
+// 見つからなければ保険として新規追加する。
+export async function updateSession(session: WalkSession): Promise<void> {
+  const sessions = await getAllSessions();
+  const index = sessions.findIndex((s) => s.id === session.id);
+  if (index === -1) {
+    sessions.push(session);
+  } else {
+    sessions[index] = session;
+  }
+  await setItem(SESSIONS_KEY, sessions);
+}
+
 export async function deleteSession(sessionId: string): Promise<void> {
   const sessions = await getAllSessions();
   const session = sessions.find((s) => s.id === sessionId);

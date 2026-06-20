@@ -21,7 +21,7 @@ import { WalkStartModal } from '../components/WalkStartModal';
 import { useCondition } from '../hooks/useCondition';
 import { useHealth } from '../hooks/useHealth';
 import { deletePhoto } from '../storage/photos';
-import { saveSession } from '../storage/sessions';
+import { saveSession, updateSession } from '../storage/sessions';
 import { getItem, setItem } from '../storage/storage';
 import { colors } from '../theme/colors';
 import { buildGreeting } from '../utils/greeting';
@@ -82,6 +82,9 @@ export default function HomeScreen() {
   const [confirmedSteps, setConfirmedSteps] = useState<number | null>(null);
   const [walkStartedAt, setWalkStartedAt] = useState<Date | null>(null);
   const pedometerSubscription = useRef<ReturnType<typeof Pedometer.watchStepCount> | null>(null);
+  // 終了処理（＝即保存）が走ったかどうか。自動終了とAppState復帰が同一tickで
+  // 二重に handleEnd を呼んでも保存が1回になるよう、同期的に効く ref でガードする。
+  const endingRef = useRef(false);
 
   const [sessionWeather, setSessionWeather] = useState<Weather | undefined>(undefined);
 
@@ -154,6 +157,8 @@ export default function HomeScreen() {
   const handleStart = useCallback(async () => {
     // 散歩から戻ったときに勝手に再表示されないよう、あいさつを閉じる
     setShowGreeting(false);
+    // 新しい散歩を始めるので、終了ガードを解除
+    endingRef.current = false;
 
     // fallback 用に HealthKit baseline を一応取得（通常は使わない）
     let baseline = 0;
@@ -190,8 +195,13 @@ export default function HomeScreen() {
   }, [getTodaySteps, condition.weather]);
 
   const handleEnd = useCallback(async () => {
+    // 二重終了・二重保存ガード（walking 以外、または既に終了処理済みなら何もしない）
+    if (phase !== 'walking' || endingRef.current) return;
+    endingRef.current = true;
+
     const ended = new Date();
-    setEndTime(ended.getTime());
+    const endedMs = ended.getTime();
+    setEndTime(endedMs);
 
     // ライブ計測を停止
     if (pedometerSubscription.current) {
@@ -199,20 +209,39 @@ export default function HomeScreen() {
       pedometerSubscription.current = null;
     }
 
-    setPhase('finished');
-
     // 散歩区間の確定歩数を取得（ライブ表示と同じ walkStartedAt 参照）
+    let steps = walkSteps;
     if (walkStartedAt) {
       try {
         const result = await Pedometer.getStepCountAsync(walkStartedAt, ended);
-        setConfirmedSteps(result.steps);
+        steps = result.steps;
       } catch {
-        setConfirmedSteps(walkSteps);
+        steps = walkSteps;
       }
-    } else {
-      setConfirmedSteps(walkSteps);
     }
-  }, [walkStartedAt, walkSteps]);
+    setConfirmedSteps(steps);
+
+    // 終了＝即保存。メモ・場所ラベルはこの時点では未入力なので、
+    // 結果画面で編集後「閉じる」時に updateSession で確定する（案Y）。
+    const session: WalkSession = {
+      id: makeSessionId(startTime),
+      startTime,
+      endTime: endedMs,
+      steps,
+      memo,
+      placeLabel,
+      photoIds: photos.map((p) => p.id),
+      weather: sessionWeather,
+    };
+    try {
+      await saveSession(session);
+    } catch (e) {
+      Alert.alert('保存に失敗しました', e instanceof Error ? e.message : '');
+      // 保存に失敗しても結果画面は表示する
+    }
+
+    setPhase('finished');
+  }, [phase, walkStartedAt, walkSteps, startTime, memo, placeLabel, photos, sessionWeather]);
 
   // 自動終了の監視：now（1秒タイマーで更新）が変わるたびに 6 時間到達をチェック。
   // アプリを開いたまま放置したケースをここで検知する。
@@ -257,8 +286,9 @@ export default function HomeScreen() {
     setSessionWeather(undefined);
   }, []);
 
-  const handleSave = useCallback(async () => {
-    // ライブ表示と同ソース（CMPedometer）の確定値を保存。
+  const handleClose = useCallback(async () => {
+    // 終了時の即保存ぶんに、結果画面で入力したメモ・場所ラベル・追加写真を
+    // 反映して上書き確定する（案Y）。歩数は終了時に確定済みの値を使う。
     const sessionSteps = confirmedSteps ?? walkSteps ?? 0;
     const session: WalkSession = {
       id: makeSessionId(startTime),
@@ -271,28 +301,14 @@ export default function HomeScreen() {
       weather: sessionWeather,
     };
     try {
-      await saveSession(session);
+      await updateSession(session);
     } catch (e) {
       Alert.alert('保存に失敗しました', e instanceof Error ? e.message : '');
-      return;
+      // 失敗しても閉じる（終了時の即保存ぶんは残っている）
     }
     resetSessionInputs();
     setPhase('idle');
   }, [startTime, endTime, confirmedSteps, walkSteps, memo, placeLabel, photos, sessionWeather, resetSessionInputs]);
-
-  const handleDiscard = useCallback(() => {
-    Alert.alert('今回の散歩を破棄しますか？', 'この操作は元に戻せません', [
-      { text: 'キャンセル', style: 'cancel' },
-      {
-        text: '破棄する',
-        style: 'destructive',
-        onPress: () => {
-          resetSessionInputs();
-          setPhase('idle');
-        },
-      },
-    ]);
-  }, [resetSessionInputs]);
 
   const handleAddPhoto = useCallback(() => {
     ActionSheetIOS.showActionSheetWithOptions(
@@ -363,8 +379,7 @@ export default function HomeScreen() {
           onChangePlaceLabel={setPlaceLabel}
           onAddPhoto={handleAddPhoto}
           onDeletePhoto={handleDeletePhoto}
-          onSave={handleSave}
-          onDiscard={handleDiscard}
+          onClose={handleClose}
         />
       )}
 
@@ -542,8 +557,7 @@ type PostWalkProps = {
   onChangePlaceLabel: (v: PlaceLabel | null) => void;
   onAddPhoto: () => void;
   onDeletePhoto: (id: string) => void;
-  onSave: () => void;
-  onDiscard: () => void;
+  onClose: () => void;
 };
 
 function PostWalkView({
@@ -557,8 +571,7 @@ function PostWalkView({
   onChangePlaceLabel,
   onAddPhoto,
   onDeletePhoto,
-  onSave,
-  onDiscard,
+  onClose,
 }: PostWalkProps) {
   const durationMs = endTime - startTime;
   const calories = walkSteps * 0.04;
@@ -576,7 +589,7 @@ function PostWalkView({
       <View style={styles.celebrationBlock}>
         <Ionicons name="sparkles" size={28} color={colors.primaryDark} />
         <Text style={styles.celebrationTitle}>散歩おつかれさまでした</Text>
-        <Text style={styles.celebrationSub}>記録しますか？</Text>
+        <Text style={styles.celebrationSub}>記録しました</Text>
       </View>
 
       <View style={styles.summaryCard}>
@@ -593,7 +606,7 @@ function PostWalkView({
         />
       </View>
 
-      <Text style={styles.stepsHint}>※ 数値が安定するまで少し待ってから記録してください</Text>
+      <Text style={styles.stepsHint}>※ メモ・場所・写真を編集して「閉じる」を押すと保存されます</Text>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>写真</Text>
@@ -658,18 +671,14 @@ function PostWalkView({
         />
       </View>
 
-      <TouchableOpacity style={styles.saveButton} onPress={onSave} activeOpacity={0.85}>
+      <TouchableOpacity style={styles.saveButton} onPress={onClose} activeOpacity={0.85}>
         <Ionicons
           name="checkmark-circle"
           size={22}
           color={colors.surface}
           style={styles.startIcon}
         />
-        <Text style={styles.saveButtonText}>記録する</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity onPress={onDiscard} activeOpacity={0.6} style={styles.discardWrap}>
-        <Text style={styles.discardText}>破棄する</Text>
+        <Text style={styles.saveButtonText}>閉じる</Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -967,14 +976,6 @@ const styles = StyleSheet.create({
     fontSize: 19,
     fontWeight: '600',
     letterSpacing: 1,
-  },
-  discardWrap: {
-    paddingVertical: 8,
-  },
-  discardText: {
-    fontSize: 15,
-    color: colors.textLight,
-    textDecorationLine: 'underline',
   },
   stepsHint: {
     fontSize: 13,
