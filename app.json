@@ -59,6 +59,13 @@
         }
       ],
       [
+        "expo-media-library",
+        {
+          "savePhotosPermission": "撮影した散歩の写真を端末の写真アプリに保存します。",
+          "isAccessMediaLocationEnabled": false
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "ios": {
